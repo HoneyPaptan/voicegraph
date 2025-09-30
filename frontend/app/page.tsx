@@ -8,7 +8,7 @@ import { ConfigModal } from '@/components/ConfigModal';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Workflow, ExecutionLog } from '@/lib/types';
-import { Sparkles, Play, RefreshCw, Loader2 } from 'lucide-react';
+import { Sparkles, Play, RefreshCw, Loader2, Mic } from 'lucide-react';
 
 export default function Home() {
   // State management
@@ -22,14 +22,21 @@ export default function Home() {
   const [errorNodeId, setErrorNodeId] = useState<string | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionStartTime, setExecutionStartTime] = useState<number | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isEditingWorkflow, setIsEditingWorkflow] = useState(false);
 
   // Handle transcription
   const handleTranscribed = async (text: string) => {
     setTranscribedText(text);
     setParseError(null);
     
-    // Automatically parse workflow
-    await parseWorkflow(text);
+    if (isEditMode && workflow) {
+      // Edit existing workflow
+      await editWorkflow(text);
+    } else {
+      // Create new workflow
+      await parseWorkflow(text);
+    }
   };
 
   // Parse workflow from text
@@ -51,11 +58,53 @@ export default function Home() {
       }
 
       setWorkflow(data.workflow);
+      setIsEditMode(false); // Exit edit mode after creating new workflow
     } catch (error: any) {
       console.error('Parse error:', error);
       setParseError(error.message);
     } finally {
       setIsParsingWorkflow(false);
+    }
+  };
+
+  // Edit existing workflow with voice
+  const editWorkflow = async (text: string) => {
+    try {
+      setIsEditingWorkflow(true);
+      setParseError(null);
+
+      const response = await fetch('/api/edit-workflow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          text,
+          currentWorkflow: workflow 
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to edit workflow');
+      }
+
+      setWorkflow(data.workflow);
+      
+      // Show success message
+      setExecutionLogs((prev) => [
+        ...prev,
+        {
+          nodeId: 'system',
+          type: 'info',
+          message: `✓ ${data.message || 'Workflow updated'}`,
+          timestamp: Date.now(),
+        },
+      ]);
+    } catch (error: any) {
+      console.error('Edit error:', error);
+      setParseError(error.message);
+    } finally {
+      setIsEditingWorkflow(false);
     }
   };
 
@@ -180,6 +229,14 @@ export default function Home() {
     setErrorNodeId(null);
     setIsExecuting(false);
     setExecutionStartTime(null);
+    setIsEditMode(false);
+  };
+
+  // Toggle edit mode
+  const toggleEditMode = () => {
+    setIsEditMode(!isEditMode);
+    setTranscribedText('');
+    setParseError(null);
   };
 
   // Load example workflow
@@ -223,13 +280,15 @@ export default function Home() {
           <div className="space-y-6">
             {/* Voice Input */}
             <Card className="p-6 bg-gray-900/50 border-gray-800">
-              <h2 className="text-lg font-semibold mb-4">Voice Input</h2>
-              <VoiceInput onTranscribed={handleTranscribed} />
+              <h2 className="text-lg font-semibold mb-4">
+                {isEditMode ? 'Edit Workflow' : 'Voice Input'}
+              </h2>
+              <VoiceInput onTranscribed={handleTranscribed} isEditMode={isEditMode} />
               
-              {isParsingWorkflow && (
+              {(isParsingWorkflow || isEditingWorkflow) && (
                 <div className="mt-4 flex items-center justify-center gap-2 text-blue-400">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Parsing workflow with Cerebras AI...
+                  {isEditingWorkflow ? 'Updating workflow...' : 'Parsing workflow with Cerebras AI...'}
                 </div>
               )}
             </Card>
@@ -294,17 +353,45 @@ export default function Home() {
               </Card>
             )}
 
-            {/* Execution Controls */}
-            {workflow && !isExecuting && (
+            {/* Workflow Action Buttons */}
+            {workflow && (
               <Card className="p-6 bg-gray-900/50 border-gray-800">
-                <Button
-                  onClick={handleRunWorkflow}
-                  size="lg"
-                  className="w-full gap-2"
-                >
-                  <Play className="w-5 h-5" />
-                  Run Workflow
-                </Button>
+                <div className="space-y-3">
+                  {/* Edit Workflow Button */}
+                  <Button
+                    onClick={toggleEditMode}
+                    variant={isEditMode ? "default" : "outline"}
+                    size="lg"
+                    className={`w-full gap-2 ${isEditMode ? 'bg-purple-600 hover:bg-purple-700' : ''}`}
+                  >
+                    <Mic className="w-5 h-5" />
+                    {isEditMode ? '✓ Edit Mode Active' : '🎙️ Edit Workflow'}
+                  </Button>
+                  
+                  {/* Run Workflow Button */}
+                  {!isExecuting && (
+                    <Button
+                      onClick={handleRunWorkflow}
+                      size="lg"
+                      className="w-full gap-2"
+                      disabled={isEditMode}
+                    >
+                      <Play className="w-5 h-5" />
+                      Run Workflow
+                    </Button>
+                  )}
+                </div>
+                
+                {isEditMode && (
+                  <div className="mt-4 p-3 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+                    <p className="text-xs text-purple-300">
+                      <strong>Voice Edit Examples:</strong><br/>
+                      • "Add a Slack notification step"<br/>
+                      • "Remove the email step"<br/>
+                      • "Add another summary step before email"
+                    </p>
+                  </div>
+                )}
               </Card>
             )}
 

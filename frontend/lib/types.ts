@@ -36,6 +36,11 @@ export interface Workflow {
  * Execution context passed between nodes
  */
 export interface ExecutionContext {
+  lastOutput?: string;
+  sourceContent?: string; // Original content from Notion (for LLM extraction tasks)
+  notionPageId?: string;
+  notionDatabaseId?: string;
+  recipientEmail?: string;
   [key: string]: any;
 }
 

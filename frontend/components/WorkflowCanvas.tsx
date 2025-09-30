@@ -7,6 +7,8 @@ import ReactFlow, {
   Node,
   Edge,
   Position,
+  MarkerType,
+  Handle,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { motion } from 'framer-motion';
@@ -65,11 +67,25 @@ function CustomNode({ data }: { data: any }) {
         ${!isActive && !isError ? 'border-white/20' : ''}
       `}
     >
+      {/* Input Handle - Connection point for incoming edges */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        className="w-3 h-3 !bg-white border-2 border-gray-400"
+      />
+      
       <div className="flex items-center gap-2">
         {getIcon()}
         <div className="font-semibold text-sm">{data.label}</div>
       </div>
       <div className="text-xs opacity-80 mt-1">{data.action}</div>
+      
+      {/* Output Handle - Connection point for outgoing edges */}
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="w-3 h-3 !bg-white border-2 border-gray-400"
+      />
     </motion.div>
   );
 }
@@ -82,36 +98,60 @@ const nodeTypes = {
  * WorkflowCanvas - Visualizes workflow as an animated graph
  */
 export function WorkflowCanvas({ nodes, edges, activeNodeId }: WorkflowCanvasProps) {
-  // Convert workflow nodes to React Flow nodes
+  // MUST call all hooks before any conditional returns!
+  
+  // Convert workflow nodes to React Flow nodes with smart positioning
   const flowNodes: Node[] = useMemo(() => {
-    return nodes.map((node, index) => ({
-      id: node.id,
-      type: 'custom',
-      position: { x: 50, y: index * 150 + 50 },
-      data: {
-        label: node.label || node.type.toUpperCase(),
-        type: node.type,
-        action: node.action,
-        delay: index * 0.2,
-        isActive: node.id === activeNodeId,
-        isError: false, // Will be updated during execution
-      },
-      sourcePosition: Position.Bottom,
-      targetPosition: Position.Top,
-    }));
+    return nodes.map((node, index) => {
+      // Calculate position for vertical flow with proper spacing
+      const verticalSpacing = 180;
+      const horizontalCenter = 250;
+      
+      return {
+        id: node.id,
+        type: 'custom',
+        position: { 
+          x: horizontalCenter, 
+          y: index * verticalSpacing + 50 
+        },
+        data: {
+          label: node.label || node.type.toUpperCase(),
+          type: node.type,
+          action: node.action,
+          delay: index * 0.2,
+          isActive: node.id === activeNodeId,
+          isError: false,
+        },
+        sourcePosition: Position.Bottom,
+        targetPosition: Position.Top,
+      };
+    });
   }, [nodes, activeNodeId]);
 
-  // Convert workflow edges to React Flow edges
+  // Convert workflow edges to React Flow edges with beautiful styling
   const flowEdges: Edge[] = useMemo(() => {
-    return edges.map((edge) => ({
-      id: edge.id,
+    if (!edges || edges.length === 0) {
+      return [];
+    }
+
+    return edges.map((edge, index) => ({
+      id: edge.id || `edge-${index}`,
       source: edge.source,
       target: edge.target,
+      type: 'smoothstep',
       animated: true,
-      style: { stroke: '#94a3b8', strokeWidth: 2 },
+      style: { 
+        stroke: '#8b5cf6',
+        strokeWidth: 3,
+      },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        color: '#8b5cf6',
+      },
     }));
   }, [edges]);
 
+  // NOW check for empty state after all hooks
   if (nodes.length === 0) {
     return (
       <div className="h-full flex items-center justify-center text-gray-400">

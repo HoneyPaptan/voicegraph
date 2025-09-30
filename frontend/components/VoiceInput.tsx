@@ -6,12 +6,13 @@ import { Button } from './ui/button';
 
 interface VoiceInputProps {
   onTranscribed: (text: string) => void;
+  isEditMode?: boolean;
 }
 
 /**
  * VoiceInput component - Records audio and transcribes using Groq Whisper
  */
-export function VoiceInput({ onTranscribed }: VoiceInputProps) {
+export function VoiceInput({ onTranscribed, isEditMode = false }: VoiceInputProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,15 +96,26 @@ export function VoiceInput({ onTranscribed }: VoiceInputProps) {
 
   return (
     <div className="flex flex-col items-center gap-4">
+      {isEditMode && (
+        <div className="text-center mb-2">
+          <span className="inline-block px-3 py-1 bg-purple-500/20 border border-purple-500 rounded-full text-purple-300 text-sm font-medium">
+            🎤 Edit Mode Active
+          </span>
+          <p className="text-xs text-gray-400 mt-2">
+            Speak to add, remove, or modify workflow nodes
+          </p>
+        </div>
+      )}
+      
       <div className="flex items-center gap-3">
         {!isRecording && !isProcessing && (
           <Button
             onClick={startRecording}
             size="lg"
-            className="gap-2"
+            className={`gap-2 ${isEditMode ? 'bg-purple-600 hover:bg-purple-700' : ''}`}
           >
             <Mic className="w-5 h-5" />
-            Start Recording
+            {isEditMode ? 'Record Edit Command' : 'Start Recording'}
           </Button>
         )}
 

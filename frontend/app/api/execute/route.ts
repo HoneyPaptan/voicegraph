@@ -65,6 +65,11 @@ export async function POST(request: NextRequest) {
               // Store output in context for next node
               context.lastOutput = result.output;
               context[node.id] = result.output;
+              
+              // Store source content from Notion for later LLM nodes to reference
+              if (node.type === 'notion') {
+                context.sourceContent = result.output;
+              }
 
               sendEvent({
                 type: 'success',

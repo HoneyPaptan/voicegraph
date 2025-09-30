@@ -75,6 +75,10 @@ async function executeNotionNode(
 
 /**
  * Executes an LLM node using Cerebras
+ * Handles any action dynamically by converting action name to prompt
+ * 
+ * IMPORTANT: Uses sourceContent (original data) for extraction tasks,
+ * and lastOutput (previous step) for transformation tasks
  */
 async function executeLLMNode(
   node: WorkflowNode,
@@ -82,27 +86,60 @@ async function executeLLMNode(
 ): Promise<string> {
   const { action, params } = node;
   
-  // Get previous output from context
-  const previousOutput = context.lastOutput || '';
+  // Determine which content to use:
+  // - For extraction/analysis: use ORIGINAL source content
+  // - For summarization: use previous output (or source if first LLM)
+  const isExtractionTask = action.includes('extract') || action.includes('find') || action.includes('get');
+  const isAnalysisTask = action.includes('analyze') || action.includes('insights');
   
-  if (!previousOutput) {
+  // Use source content for extraction/analysis, otherwise use previous output
+  const inputContent = (isExtractionTask || isAnalysisTask) 
+    ? (context.sourceContent || context.lastOutput)
+    : context.lastOutput;
+  
+  if (!inputContent) {
     throw new Error('No input data for LLM processing');
   }
 
-  // Build prompt based on action
-  let prompt = params?.prompt || '';
+  // Build highly specific prompt based on action
+  let prompt = '';
   
-  if (action === 'summarize') {
-    prompt = `Please provide a concise summary of the following content:\n\n${previousOutput}`;
-  } else if (action === 'analyze') {
-    prompt = `Please analyze the following content and provide key insights:\n\n${previousOutput}`;
-  } else if (action === 'extract_insights') {
-    prompt = `Extract key insights and learnings from the following content:\n\n${previousOutput}`;
-  } else if (params?.prompt) {
-    prompt = `${params.prompt}\n\nContent:\n${previousOutput}`;
-  } else {
-    throw new Error(`Unknown LLM action: ${action}`);
+  // Check if there's a custom prompt in params first
+  if (params?.prompt) {
+    prompt = `${params.prompt}\n\nContent:\n${inputContent}`;
   }
+  // Handle predefined actions with VERY specific prompts
+  else if (action === 'summarize') {
+    prompt = `Create a concise, well-structured summary of the following content. Include key points, action items, and important dates.\n\nContent:\n${inputContent}`;
+  } else if (action === 'analyze') {
+    prompt = `Analyze the following content and provide key insights, trends, and recommendations.\n\nContent:\n${inputContent}`;
+  } else if (action === 'extract_insights') {
+    prompt = `Extract the most important insights, learnings, and takeaways from the following content.\n\nContent:\n${inputContent}`;
+  }
+  // Handle extraction tasks with specific instructions
+  else if (action.includes('extract') || action.includes('find') || action.includes('get')) {
+    // Convert action to instruction
+    // e.g., "extract_next_meeting_date" -> "Extract the next meeting date"
+    const humanReadableAction = action
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+    
+    prompt = `${humanReadableAction} from the following content. Be specific and provide ONLY the requested information. If the information is not found, clearly state "Not found in the content".\n\nContent:\n${inputContent}`;
+  }
+  // Handle ANY other custom action dynamically
+  else {
+    const humanReadableAction = action
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+    
+    prompt = `${humanReadableAction} from the following content:\n\nContent:\n${inputContent}`;
+  }
+
+  console.log(`🤖 LLM Node Action: ${action}`);
+  console.log(`📝 Using: ${isExtractionTask || isAnalysisTask ? 'SOURCE' : 'PREVIOUS'} content`);
+  console.log(`💬 Prompt: ${prompt.substring(0, 150)}...`);
 
   return await generateContent(prompt);
 }

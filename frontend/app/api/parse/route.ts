@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseWorkflow } from '@/lib/cerebras';
+import { ensureWorkflowEdges } from '@/lib/workflow-utils';
 
 /**
  * POST /api/parse
@@ -19,9 +20,10 @@ export async function POST(request: NextRequest) {
     console.log('Parsing workflow from text:', text);
 
     // Parse workflow using Cerebras
-    const workflow = await parseWorkflow(text);
+    let workflow = await parseWorkflow(text);
 
-    console.log('Parsed workflow:', JSON.stringify(workflow, null, 2));
+    // Ensure all nodes are connected with edges
+    workflow = ensureWorkflowEdges(workflow);
 
     return NextResponse.json({ 
       workflow,
