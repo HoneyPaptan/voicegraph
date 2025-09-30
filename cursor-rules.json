@@ -1,0 +1,358 @@
+{
+  "project_name": "AI Workflow Orchestrator",
+  "hackathon_context": {
+    "timeline": "5 days",
+    "goal": "Build a voice-to-workflow automation system with visual graph interface",
+    "prize_eligibility": "Must use at least one sponsor technology for cash prizes",
+    "sponsor_requirements": {
+      "cerebras": {
+        "requirement": "Best use of Cerebras API",
+        "usage": "Primary LLM for workflow parsing and content processing",
+        "models": ["llama-4-scout-17b-16e-instruct", "llama3.1-70b"],
+        "docs": "https://inference-docs.cerebras.ai/quickstart"
+      },
+      "meta_llama": {
+        "requirement": "Best use of Meta's Llama models",
+        "usage": "Using Llama models through Cerebras inference",
+        "coverage": "Automatically covered by using Cerebras with Llama models"
+      },
+      "docker": {
+        "requirement": "Most creative usage of Docker MCP Gateway",
+        "usage": "Containerize entire application with docker-compose",
+        "deliverable": "Multi-container deployment (frontend + backend)"
+      }
+    },
+    "credits_available": {
+      "openrouter": "$5 credit (not used - no Whisper support)",
+      "groq": "Free tier with Whisper API"
+    }
+  },
+  "tech_stack": {
+    "frontend": {
+      "framework": "Next.js 14 with App Router",
+      "ui_library": "React 18",
+      "styling": "Tailwind CSS + shadcn/ui",
+      "visualization": "React Flow (reactflow) - for workflow graphs",
+      "animation": "Framer Motion - for node animations",
+      "icons": "lucide-react",
+      "state": "React hooks (useState, useEffect) - NO localStorage/sessionStorage"
+    },
+    "backend": {
+      "runtime": "Node.js 18+",
+      "framework": "Next.js API routes",
+      "alternative": "Express.js if separate backend needed"
+    },
+    "ai_services": {
+      "speech_to_text": {
+        "provider": "Groq Cloud",
+        "model": "whisper-large-v3-turbo",
+        "cost": "$0.04/hour (free tier available)",
+        "package": "groq-sdk",
+        "reason": "12x cheaper than OpenAI, super fast, free tier"
+      },
+      "llm_inference": {
+        "provider": "Cerebras (REQUIRED for prize)",
+        "package": "@ai-sdk/cerebras + ai (Vercel AI SDK)",
+        "models": ["llama-4-scout-17b-16e-instruct"],
+        "use_cases": ["Parse natural language to workflow JSON", "Summarize content", "Transform data between steps"]
+      }
+    },
+    "integrations": {
+      "notion": {
+        "package": "@notionhq/client",
+        "usage": "Fetch pages, databases for workflow input"
+      },
+      "email": {
+        "package": "nodemailer",
+        "usage": "Send workflow results via SMTP (Gmail)",
+        "alternative": "SendGrid for production"
+      }
+    },
+    "deployment": {
+      "containerization": "Docker + docker-compose",
+      "hosting_options": ["Vercel (frontend)", "Railway (backend)", "Local with Docker"]
+    }
+  },
+  "architecture": {
+    "flow": [
+      "User speaks into microphone",
+      "Browser records audio (MediaRecorder API)",
+      "Audio sent to /api/transcribe (Groq Whisper)",
+      "Text sent to /api/parse (Cerebras LLM)",
+      "Cerebras returns workflow JSON {nodes, edges}",
+      "React Flow renders animated graph",
+      "User fills config (Notion page ID, email)",
+      "User clicks 'Run Workflow'",
+      "Backend executes sequentially: Notion → Cerebras → Email",
+      "Logs streamed back via SSE",
+      "UI highlights active nodes in real-time"
+    ],
+    "folder_structure": {
+      "root": [
+        "frontend/",
+        "backend/ (if separate)",
+        "docker-compose.yml",
+        ".env.example",
+        "README.md"
+      ],
+      "frontend": [
+        "app/",
+        "components/ (VoiceInput, WorkflowCanvas, ExecutionLogs, ConfigModal)",
+        "lib/ (cerebras.js, groq-stt.js, executor.js, tools/)",
+        "lib/tools/ (notion.js, email.js)",
+        "public/",
+        "package.json",
+        "Dockerfile"
+      ]
+    },
+    "data_flow": {
+      "workflow_json_structure": {
+        "workflowId": "string",
+        "nodes": [
+          {
+            "id": "string (step-0, step-1, etc.)",
+            "type": "string (notion | llm | email)",
+            "action": "string (fetch_page | summarize | send)",
+            "params": "object (type-specific parameters)"
+          }
+        ],
+        "edges": [
+          {
+            "id": "string",
+            "source": "string (node id)",
+            "target": "string (node id)"
+          }
+        ]
+      },
+      "execution_context": "Object storing output of each node, passed to next step"
+    }
+  },
+  "implementation_rules": {
+    "must_do": [
+      "Use @ai-sdk/cerebras for all LLM calls (required for Cerebras prize)",
+      "Use Groq Whisper for speech-to-text (free + fast)",
+      "Make REAL API calls to Notion and Email (no mocking)",
+      "Show animated node generation (staggered fade-in)",
+      "Stream execution logs in real-time using Server-Sent Events",
+      "Containerize with Docker (docker-compose with frontend + backend services)",
+      "Handle errors gracefully with retry options",
+      "Support linear workflows only (no branching for MVP)",
+      "Store all state in React state or variables (NO localStorage/sessionStorage)",
+      "Use only Tailwind core utility classes (no custom classes that need compilation)"
+    ],
+    "do_not_do": [
+      "Do NOT use OpenRouter (no Whisper support)",
+      "Do NOT use localStorage or sessionStorage (not supported in artifacts)",
+      "Do NOT build complex branching workflows (save time)",
+      "Do NOT add user authentication (out of scope)",
+      "Do NOT persist workflows to database (use in-memory for demo)",
+      "Do NOT use Tailwind classes outside core utilities",
+      "Do NOT import libraries not in the approved list"
+    ],
+    "approved_libraries": {
+      "react_ecosystem": ["react", "react-dom", "next"],
+      "ai_sdks": ["@ai-sdk/cerebras", "ai", "groq-sdk"],
+      "integrations": ["@notionhq/client", "nodemailer"],
+      "ui_components": ["reactflow", "framer-motion", "lucide-react", "@/components/ui/* (shadcn)"],
+      "utilities": ["lodash (for data processing)", "papaparse (if CSV needed)"]
+    }
+  },
+  "5_day_sprint_plan": {
+    "day_1": {
+      "goal": "Foundation - Setup & Tools",
+      "tasks": [
+        "Initialize Next.js project with Tailwind",
+        "Install all dependencies",
+        "Get API keys: Cerebras, Groq, Notion, Gmail SMTP",
+        "Create basic UI layout (header, input, canvas area)",
+        "Build Notion tool: fetchNotionPage(pageId)",
+        "Build Email tool: sendEmail(to, subject, body)",
+        "Test tools independently with console.log"
+      ],
+      "deliverable": "Working project with tested API integrations"
+    },
+    "day_2": {
+      "goal": "Voice Input & Workflow Generation",
+      "tasks": [
+        "Implement VoiceInput component with MediaRecorder",
+        "Create /api/transcribe endpoint (Groq Whisper)",
+        "Create /api/parse endpoint (Cerebras LLM)",
+        "Design prompt for Cerebras to parse natural language into workflow JSON",
+        "Build workflow generator function (JSON → React Flow nodes/edges)",
+        "Display static workflow graph",
+        "Add 3 example workflows as quick-load buttons"
+      ],
+      "deliverable": "Voice → Text → Visual Graph (no execution yet)"
+    },
+    "day_3": {
+      "goal": "Workflow Execution Engine",
+      "tasks": [
+        "Build sequential executor in lib/executor.js",
+        "Implement executeNode() switch statement for notion/llm/email types",
+        "Create /api/execute endpoint with SSE streaming",
+        "Pass data between nodes via context object",
+        "Add ExecutionLogs component with real-time updates",
+        "Test end-to-end: Voice → Graph → Execute → Email received"
+      ],
+      "deliverable": "Fully working execution pipeline"
+    },
+    "day_4": {
+      "goal": "Polish & Animation",
+      "tasks": [
+        "Add staggered node animation with Framer Motion",
+        "Style custom React Flow nodes (icons, colors, status indicators)",
+        "Build ConfigModal for user inputs (Notion ID, email address)",
+        "Add loading states and progress indicators",
+        "Highlight active node during execution",
+        "Implement error handling with retry button",
+        "Dark mode polish with glassmorphism effects",
+        "Add execution timer (show Cerebras speed)"
+      ],
+      "deliverable": "Demo-ready UI with wow factor"
+    },
+    "day_5": {
+      "goal": "Docker & Demo Prep",
+      "tasks": [
+        "Create Dockerfiles for frontend and backend",
+        "Write docker-compose.yml with both services",
+        "Test full deployment with 'docker-compose up'",
+        "Add /health endpoint showing Docker status",
+        "Record 3-minute demo video as backup",
+        "Create README with architecture diagram",
+        "Test on fresh environment (catch bugs)",
+        "Practice live demo pitch",
+        "Deploy to Vercel/Railway (optional)"
+      ],
+      "deliverable": "Containerized app + polished demo"
+    }
+  },
+  "workflow_examples": {
+    "example_1": {
+      "input": "Get my Notion meeting notes and email me a summary",
+      "workflow": {
+        "nodes": [
+          {"type": "notion", "action": "fetch_page"},
+          {"type": "llm", "action": "summarize", "prompt": "Create a concise summary"},
+          {"type": "email", "action": "send", "subject": "Meeting Notes Summary"}
+        ]
+      }
+    },
+    "example_2": {
+      "input": "Fetch my Notion project tasks and send me a status update",
+      "workflow": {
+        "nodes": [
+          {"type": "notion", "action": "fetch_database"},
+          {"type": "llm", "action": "analyze", "prompt": "Analyze project status"},
+          {"type": "email", "action": "send", "subject": "Project Status Update"}
+        ]
+      }
+    },
+    "example_3": {
+      "input": "Get my weekly Notion journal and email me key insights",
+      "workflow": {
+        "nodes": [
+          {"type": "notion", "action": "fetch_page"},
+          {"type": "llm", "action": "extract_insights", "prompt": "Extract key insights and learnings"},
+          {"type": "email", "action": "send", "subject": "Weekly Insights"}
+        ]
+      }
+    }
+  },
+  "demo_script": {
+    "duration": "3 minutes",
+    "structure": [
+      {
+        "time": "0:00-0:30",
+        "action": "Introduction",
+        "script": "This is an AI-powered workflow orchestrator that turns natural language into automated workflows. Watch as I create an automation just by speaking."
+      },
+      {
+        "time": "0:30-1:00",
+        "action": "Voice Input Demo",
+        "script": "[Hold mic button] 'Get my Notion meeting notes and email me a summary' [Release]. Powered by Groq Whisper for transcription."
+      },
+      {
+        "time": "1:00-1:30",
+        "action": "Workflow Generation",
+        "script": "Cerebras AI instantly parses the intent and generates a visual workflow. Watch the nodes appear - Notion Fetcher, Summarizer using Cerebras Llama, and Email Sender."
+      },
+      {
+        "time": "1:30-2:15",
+        "action": "Execution",
+        "script": "[Fill config, click Run] Real-time execution logs show each step. The system fetches my actual Notion page, Cerebras processes it in milliseconds, and sends a real email. [Show inbox]"
+      },
+      {
+        "time": "2:15-2:45",
+        "action": "Technical Highlights",
+        "script": "Built with Cerebras for ultra-fast inference, Groq Whisper for voice, React Flow for visualization, and fully containerized with Docker for one-command deployment."
+      },
+      {
+        "time": "2:45-3:00",
+        "action": "Closing",
+        "script": "This solves the pain of building automations - just speak what you want, and AI figures out the rest. Thank you!"
+      }
+    ]
+  },
+  "judging_criteria_coverage": {
+    "innovation": "Voice-to-workflow is novel, visual graph generation is impressive",
+    "technical_complexity": "Multi-service architecture, real-time streaming, LLM orchestration, containerization",
+    "sponsor_tech_usage": {
+      "cerebras": "Used for parsing AND content processing (multiple touchpoints)",
+      "meta_llama": "Running Llama models through Cerebras",
+      "docker": "Full containerized deployment with health monitoring"
+    },
+    "practicality": "Solves real problem: making automation accessible to non-coders",
+    "execution": "Actually works end-to-end with real API integrations",
+    "presentation": "Polished UI with animations, live demo, clear value prop"
+  },
+  "environment_variables": {
+    "required": [
+      "CEREBRAS_API_KEY=your_cerebras_key",
+      "GROQ_API_KEY=your_groq_key",
+      "NOTION_API_KEY=your_notion_integration_key",
+      "SMTP_HOST=smtp.gmail.com",
+      "SMTP_PORT=587",
+      "SMTP_USER=your_email@gmail.com",
+      "SMTP_PASSWORD=your_app_password"
+    ],
+    "optional": [
+      "NEXT_PUBLIC_API_URL=http://localhost:3000 (for development)",
+      "NODE_ENV=production"
+    ]
+  },
+  "common_pitfalls": {
+    "avoid": [
+      "Overengineering - keep it simple, linear workflows only",
+      "Mocking data - judges will check if it actually works",
+      "Ignoring errors - add proper error handling",
+      "Forgetting Docker - it's a requirement for prizes",
+      "No fallback - have pre-recorded demo video in case of WiFi issues",
+      "Poor time management - timebox each feature, cut scope if behind"
+    ]
+  },
+  "success_metrics": {
+    "minimum_viable_demo": [
+      "Voice input works",
+      "Workflow appears visually",
+      "Execution completes successfully",
+      "Real email is received",
+      "Docker deployment works"
+    ],
+    "bonus_points": [
+      "Execution completes in <5 seconds (show Cerebras speed)",
+      "Smooth animations on node generation",
+      "Clean, modern UI (dark mode)",
+      "Error recovery (retry button)",
+      "Multiple example workflows",
+      "Live Docker health status in UI"
+    ]
+  },
+  "cursor_ai_instructions": {
+    "coding_style": "Use functional React components with hooks, prefer const over let, use async/await over promises, add JSDoc comments for complex functions",
+    "file_organization": "One component per file, co-locate API routes with their logic, keep tools in separate files",
+    "error_handling": "Always use try-catch, return structured errors {error: string, code: number}, log to console for debugging",
+    "testing_approach": "Manual testing via demo scenarios, no unit tests for hackathon speed",
+    "commit_strategy": "Commit after each working feature, use descriptive messages like 'feat: add voice input component'",
+    "when_stuck": "Check official docs first, use console.log debugging, simplify the approach if taking >30min"
+  }
+}

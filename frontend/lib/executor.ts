@@ -1,0 +1,130 @@
+import { WorkflowNode, ExecutionContext, NodeExecutionResult } from './types';
+import { fetchNotionPage, fetchNotionDatabase } from './tools/notion';
+import { sendEmail } from './tools/email';
+import { generateContent } from './cerebras';
+
+/**
+ * Executes a single workflow node
+ * @param node - The workflow node to execute
+ * @param context - The execution context from previous nodes
+ * @returns Execution result with output
+ */
+export async function executeNode(
+  node: WorkflowNode,
+  context: ExecutionContext
+): Promise<NodeExecutionResult> {
+  try {
+    console.log(`Executing node ${node.id} (${node.type}):`, node);
+
+    let output: any;
+
+    switch (node.type) {
+      case 'notion':
+        output = await executeNotionNode(node, context);
+        break;
+
+      case 'llm':
+        output = await executeLLMNode(node, context);
+        break;
+
+      case 'email':
+        output = await executeEmailNode(node, context);
+        break;
+
+      default:
+        throw new Error(`Unknown node type: ${node.type}`);
+    }
+
+    return { success: true, output };
+  } catch (error: any) {
+    console.error(`Node ${node.id} execution error:`, error);
+    return {
+      success: false,
+      error: error.message || 'Unknown error occurred',
+    };
+  }
+}
+
+/**
+ * Executes a Notion node
+ */
+async function executeNotionNode(
+  node: WorkflowNode,
+  context: ExecutionContext
+): Promise<string> {
+  const { action, params } = node;
+
+  if (action === 'fetch_page') {
+    // Prioritize user config over workflow params (which may have placeholders)
+    const pageId = context.notionPageId || params?.pageId;
+    if (!pageId) {
+      throw new Error('Notion page ID not provided. Please enter it in the configuration modal.');
+    }
+    return await fetchNotionPage(pageId);
+  } else if (action === 'fetch_database') {
+    // Prioritize user config over workflow params (which may have placeholders)
+    const databaseId = context.notionDatabaseId || params?.databaseId;
+    if (!databaseId) {
+      throw new Error('Notion database ID not provided. Please enter it in the configuration modal.');
+    }
+    return await fetchNotionDatabase(databaseId);
+  } else {
+    throw new Error(`Unknown Notion action: ${action}`);
+  }
+}
+
+/**
+ * Executes an LLM node using Cerebras
+ */
+async function executeLLMNode(
+  node: WorkflowNode,
+  context: ExecutionContext
+): Promise<string> {
+  const { action, params } = node;
+  
+  // Get previous output from context
+  const previousOutput = context.lastOutput || '';
+  
+  if (!previousOutput) {
+    throw new Error('No input data for LLM processing');
+  }
+
+  // Build prompt based on action
+  let prompt = params?.prompt || '';
+  
+  if (action === 'summarize') {
+    prompt = `Please provide a concise summary of the following content:\n\n${previousOutput}`;
+  } else if (action === 'analyze') {
+    prompt = `Please analyze the following content and provide key insights:\n\n${previousOutput}`;
+  } else if (action === 'extract_insights') {
+    prompt = `Extract key insights and learnings from the following content:\n\n${previousOutput}`;
+  } else if (params?.prompt) {
+    prompt = `${params.prompt}\n\nContent:\n${previousOutput}`;
+  } else {
+    throw new Error(`Unknown LLM action: ${action}`);
+  }
+
+  return await generateContent(prompt);
+}
+
+/**
+ * Executes an Email node
+ */
+async function executeEmailNode(
+  node: WorkflowNode,
+  context: ExecutionContext
+): Promise<string> {
+  const { params } = node;
+  
+  // Prioritize user config over workflow params
+  const to = context.recipientEmail || params?.to;
+  const subject = params?.subject || 'Workflow Result';
+  const body = context.lastOutput || 'No content';
+
+  if (!to) {
+    throw new Error('Recipient email address not provided. Please enter it in the configuration modal.');
+  }
+
+  return await sendEmail(to, subject, body);
+}
+
