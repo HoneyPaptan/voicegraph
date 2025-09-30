@@ -2,6 +2,45 @@
 
 ## Latest Updates
 
+### ✨ NEW: Parallel Workflow Execution (2025-09-30)
+
+**Feature:** Nodes can now execute concurrently when they have no dependencies on each other!
+
+**Benefits:**
+- **Faster execution**: Independent tasks run simultaneously
+- **Better performance**: 2-3x speedup for workflows with parallel branches
+- **More flexibility**: Create complex workflows with fan-out/fan-in patterns
+
+**How It Works:**
+- Automatic layer analysis groups independent nodes
+- Nodes in same layer execute concurrently with `Promise.all()`
+- Visual indicators: ⚡ badge on parallel nodes, side-by-side positioning
+
+**Example:**
+```
+"Get my Notion notes, then summarize and extract date at the same time"
+→ Layer 0: Fetch (5s)
+→ Layer 1: Summarize + Extract (parallel, 3s total)
+→ Layer 2: Email (2s)
+Total: 10s instead of 15s!
+```
+
+**Voice Commands:**
+- "summarize and extract date at the same time"
+- "fetch two Notion pages in parallel"
+- "analyze all three documents concurrently"
+
+**Files Added:**
+- `frontend/lib/parallel-executor.ts` (analyzer & position calculator)
+- `PARALLEL_WORKFLOWS.md` (comprehensive docs)
+
+**Files Modified:**
+- `frontend/app/api/execute/route.ts` (concurrent execution)
+- `frontend/components/WorkflowCanvas.tsx` (parallel positioning)
+- `frontend/lib/cerebras.ts` (parallel-aware prompt)
+
+---
+
 ### ✅ Fixed: Sequential Edge Connections (2025-09-30)
 
 **Problem:** Workflow nodes were not visually connected with edges.

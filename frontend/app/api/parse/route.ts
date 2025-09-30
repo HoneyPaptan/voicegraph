@@ -17,6 +17,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if input is too short or just punctuation/whitespace
+    const trimmedText = text.trim();
+    if (trimmedText.length < 5 || /^[.\s,!?-]*$/.test(trimmedText)) {
+      return NextResponse.json(
+        { error: 'Please provide a meaningful voice command. Try something like: "Get my Notion meeting notes and email me a summary"' },
+        { status: 400 }
+      );
+    }
+
     console.log('Parsing workflow from text:', text);
 
     // Parse workflow using Cerebras

@@ -18,6 +18,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if input is too short or just punctuation/whitespace
+    const trimmedText = text.trim();
+    if (trimmedText.length < 5 || /^[.\s,!?-]*$/.test(trimmedText)) {
+      return NextResponse.json(
+        { error: 'Please provide a meaningful edit command. Try something like: "add a summarize step" or "extract date at the same time"' },
+        { status: 400 }
+      );
+    }
+
     if (!currentWorkflow) {
       return NextResponse.json(
         { error: 'Current workflow not provided' },
@@ -67,11 +76,26 @@ IMPORTANT Rules:
 - Each node must have: id (step-N), type, action, label, params
 - For LLM nodes with custom tasks, use a descriptive snake_case action name
 - Generate new node IDs starting from the next available number
-- Update edges to connect nodes sequentially in a linear flow
 - If adding a node, insert it logically based on the command
 - If removing a node, update all edges accordingly and renumber if needed
 - Keep all existing nodes unless specifically asked to remove them
 - Make labels human-readable and descriptive
+
+CRITICAL - Edge Structure:
+When user says "at the same time", "parallel", "simultaneously", "both", "together":
+- Create edges from the SAME source to MULTIPLE targets
+- Example: "add summarize and extract date at the same time"
+  Current: step-0 (Fetch)
+  New nodes: step-1 (Summarize), step-2 (Extract)
+  Edges: [
+    {"id": "edge-0", "source": "step-0", "target": "step-1"},
+    {"id": "edge-1", "source": "step-0", "target": "step-2"}  // Both from step-0!
+  ]
+  
+WRONG (sequential): step-0 → step-1 → step-2  ❌
+CORRECT (parallel): step-0 → step-1 AND step-0 → step-2  ✅
+
+If NO parallel keywords: Connect nodes sequentially
 
 Custom LLM Actions:
 The executor can handle ANY action name for LLM nodes. Examples:
@@ -102,10 +126,15 @@ Return ONLY the updated workflow JSON, no explanations.`;
       throw new Error('Invalid workflow structure: missing nodes array');
     }
 
-    // Ensure all nodes are connected with edges
-    updatedWorkflow = ensureWorkflowEdges(updatedWorkflow);
+    // Debug: Log what Cerebras generated
+    console.log('🧠 Cerebras edited workflow:');
+    console.log('   Nodes:', updatedWorkflow.nodes.map((n: any) => `${n.id} (${n.label})`).join(', '));
+    console.log('   Raw Edges:', JSON.stringify(updatedWorkflow.edges, null, 2));
 
-    console.log('Updated workflow:', JSON.stringify(updatedWorkflow, null, 2));
+    // Ensure all nodes are connected with edges (only adds if missing)
+    updatedWorkflow = ensureWorkflowEdges(updatedWorkflow);
+    
+    console.log('   Final Edges:', JSON.stringify(updatedWorkflow.edges, null, 2));
 
     return NextResponse.json({ 
       workflow: updatedWorkflow,

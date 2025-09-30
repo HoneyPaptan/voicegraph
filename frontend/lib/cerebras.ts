@@ -52,7 +52,7 @@ The workflow should have this structure:
     {
       "id": "step-0",
       "type": "notion" | "llm" | "email",
-      "action": "fetch_page" | "fetch_database" | "summarize" | "analyze" | "extract_insights" | "send",
+      "action": "fetch_page" | "fetch_database" | "summarize" | "analyze" | "extract_insights" | "custom_action_name" | "send",
       "label": "Human readable label",
       "params": {}
     }
@@ -67,12 +67,32 @@ The workflow should have this structure:
 }
 
 Rules:
-- Create a LINEAR workflow (no branching)
 - Use "notion" type for fetching Notion pages/databases
-- Use "llm" type for summarizing, analyzing, or extracting insights
+- Use "llm" type for summarizing, analyzing, extracting data, or any AI processing
+  - For custom LLM tasks, use snake_case action names (e.g., "extract_meeting_date", "find_action_items")
 - Use "email" type for sending results
-- Connect nodes sequentially with edges
 - Generate descriptive labels for each node
+
+CRITICAL - Edge Structure for Parallel Execution:
+When user says "at the same time", "parallel", "simultaneously", "both":
+- Create edges from the SAME source to MULTIPLE targets
+- Example: "fetch page, then summarize and extract date at the same time"
+  Edges: [
+    {"id": "edge-0", "source": "step-0", "target": "step-1"},  // fetch → summarize
+    {"id": "edge-1", "source": "step-0", "target": "step-2"}   // fetch → extract (parallel!)
+  ]
+  
+WRONG (sequential):
+  step-0 → step-1 → step-2  ❌
+  Edges: [edge-0: 0→1, edge-1: 1→2]
+
+CORRECT (parallel):
+       ┌→ step-1 ┐
+  step-0         → step-3  ✅
+       └→ step-2 ┘
+  Edges: [edge-0: 0→1, edge-1: 0→2, edge-2: 1→3, edge-3: 2→3]
+
+If NO parallel keywords: Create sequential edges (0→1→2)
 
 User command: ${input}
 
@@ -86,15 +106,26 @@ Return ONLY the JSON, no explanations.`;
     // Extract JSON from response
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      throw new Error('Failed to extract JSON from response');
+      console.error('Cerebras response did not contain JSON:', text);
+      throw new Error('Could not generate a valid workflow from your command. Please try rephrasing or being more specific.');
     }
 
-    const workflow = JSON.parse(jsonMatch[0]);
+    let workflow;
+    try {
+      workflow = JSON.parse(jsonMatch[0]);
+    } catch (parseError) {
+      console.error('Failed to parse Cerebras JSON:', jsonMatch[0]);
+      throw new Error('Generated workflow structure is invalid. Please try again with a clearer command.');
+    }
     
     // Validate workflow structure
     if (!workflow.nodes || !Array.isArray(workflow.nodes)) {
       throw new Error('Invalid workflow structure: missing nodes array');
     }
+
+    console.log('🧠 Cerebras generated workflow:');
+    console.log('   Nodes:', workflow.nodes.map((n: any) => `${n.id} (${n.label})`).join(', '));
+    console.log('   Edges:', JSON.stringify(workflow.edges, null, 2));
 
     return workflow;
   } catch (error: any) {

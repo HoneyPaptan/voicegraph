@@ -18,7 +18,17 @@ export function ensureWorkflowEdges(workflow: Workflow): Workflow {
     return aNum - bNum;
   });
 
-  // Generate sequential edges
+  // Check if workflow already has edges
+  if (workflow.edges && workflow.edges.length > 0) {
+    console.log(`✓ Workflow already has ${workflow.edges.length} edges, keeping them`);
+    return {
+      ...workflow,
+      nodes: sortedNodes,
+      edges: workflow.edges,
+    };
+  }
+
+  // Generate sequential edges only if no edges exist
   const edges: WorkflowEdge[] = [];
   
   for (let i = 0; i < sortedNodes.length - 1; i++) {
@@ -29,7 +39,7 @@ export function ensureWorkflowEdges(workflow: Workflow): Workflow {
     });
   }
 
-  console.log(`✓ Generated ${edges.length} edges for ${sortedNodes.length} nodes`);
+  console.log(`✓ Generated ${edges.length} sequential edges for ${sortedNodes.length} nodes`);
 
   return {
     ...workflow,

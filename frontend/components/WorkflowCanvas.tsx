@@ -12,12 +12,13 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { motion } from 'framer-motion';
-import { WorkflowNode as WFNode } from '@/lib/types';
+import { WorkflowNode as WFNode, WorkflowEdge } from '@/lib/types';
 import { Database, Sparkles, Mail } from 'lucide-react';
+import { analyzeParallelWorkflow, calculateParallelPositions } from '@/lib/parallel-executor';
 
 interface WorkflowCanvasProps {
   nodes: WFNode[];
-  edges: any[];
+  edges: WorkflowEdge[];
   activeNodeId?: string | null;
 }
 
@@ -53,6 +54,7 @@ function CustomNode({ data }: { data: any }) {
 
   const isActive = data.isActive;
   const isError = data.isError;
+  const isParallel = data.isParallel;
 
   return (
     <motion.div
@@ -61,12 +63,18 @@ function CustomNode({ data }: { data: any }) {
       transition={{ duration: 0.3, delay: data.delay }}
       className={`
         px-4 py-3 rounded-lg shadow-lg bg-gradient-to-br ${getColor()}
-        text-white min-w-[180px] border-2
+        text-white min-w-[180px] border-2 relative
         ${isActive ? 'border-yellow-400 ring-4 ring-yellow-400/50 animate-pulse' : ''}
         ${isError ? 'border-red-500 ring-4 ring-red-500/50' : ''}
         ${!isActive && !isError ? 'border-white/20' : ''}
       `}
     >
+      {/* Parallel indicator badge */}
+      {isParallel && (
+        <div className="absolute -top-2 -right-2 bg-cyan-500 text-white text-xs px-2 py-0.5 rounded-full font-bold shadow-lg">
+          ⚡
+        </div>
+      )}
       {/* Input Handle - Connection point for incoming edges */}
       <Handle
         type="target"
@@ -90,6 +98,10 @@ function CustomNode({ data }: { data: any }) {
   );
 }
 
+/**
+ * Node types - defined outside component to prevent re-creation
+ * This is a React Flow best practice for performance
+ */
 const nodeTypes = {
   custom: CustomNode,
 };
@@ -100,33 +112,53 @@ const nodeTypes = {
 export function WorkflowCanvas({ nodes, edges, activeNodeId }: WorkflowCanvasProps) {
   // MUST call all hooks before any conditional returns!
   
-  // Convert workflow nodes to React Flow nodes with smart positioning
+  // Convert workflow nodes to React Flow nodes with smart parallel positioning
   const flowNodes: Node[] = useMemo(() => {
-    return nodes.map((node, index) => {
-      // Calculate position for vertical flow with proper spacing
-      const verticalSpacing = 180;
-      const horizontalCenter = 250;
+    if (nodes.length === 0) return [];
+    
+    // Analyze parallel structure
+    const layers = analyzeParallelWorkflow(nodes, edges);
+    
+    const verticalSpacing = 180;
+    const canvasWidth = 800;
+    
+    // Create nodes with parallel-aware positioning
+    const nodeMap = new Map<string, Node>();
+    
+    layers.forEach((layer, layerIndex) => {
+      // Calculate horizontal positions for nodes in this layer
+      const xPositions = calculateParallelPositions(layer.nodes, canvasWidth);
+      const yPosition = layerIndex * verticalSpacing + 50;
       
-      return {
-        id: node.id,
-        type: 'custom',
-        position: { 
-          x: horizontalCenter, 
-          y: index * verticalSpacing + 50 
-        },
-        data: {
-          label: node.label || node.type.toUpperCase(),
-          type: node.type,
-          action: node.action,
-          delay: index * 0.2,
-          isActive: node.id === activeNodeId,
-          isError: false,
-        },
-        sourcePosition: Position.Bottom,
-        targetPosition: Position.Top,
-      };
+      layer.nodes.forEach((node) => {
+        const xPosition = xPositions.get(node.id) || canvasWidth / 2;
+        
+        nodeMap.set(node.id, {
+          id: node.id,
+          type: 'custom',
+          position: { 
+            x: xPosition, 
+            y: yPosition 
+          },
+          data: {
+            label: node.label || node.type.toUpperCase(),
+            type: node.type,
+            action: node.action,
+            delay: layerIndex * 0.2,
+            isActive: node.id === activeNodeId,
+            isError: false,
+            isParallel: layer.nodes.length > 1,
+            parallelCount: layer.nodes.length,
+          },
+          sourcePosition: Position.Bottom,
+          targetPosition: Position.Top,
+        });
+      });
     });
-  }, [nodes, activeNodeId]);
+    
+    // Return nodes in original order for consistent rendering
+    return nodes.map(node => nodeMap.get(node.id)!).filter(Boolean);
+  }, [nodes, edges, activeNodeId]);
 
   // Convert workflow edges to React Flow edges with beautiful styling
   const flowEdges: Edge[] = useMemo(() => {

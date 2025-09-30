@@ -30,6 +30,13 @@ export default function Home() {
     setTranscribedText(text);
     setParseError(null);
     
+    // Validate transcribed text
+    const trimmedText = text.trim();
+    if (!trimmedText || trimmedText.length < 3 || /^[.\s,!?-]*$/.test(trimmedText)) {
+      setParseError('No meaningful voice input detected. Please speak clearly and try again.');
+      return;
+    }
+    
     if (isEditMode && workflow) {
       // Edit existing workflow
       await editWorkflow(text);
@@ -130,6 +137,7 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           nodes: workflow.nodes,
+          edges: workflow.edges,
           config,
         }),
       });
