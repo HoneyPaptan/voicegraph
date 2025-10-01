@@ -195,21 +195,60 @@ export default function Home() {
         throw new Error(data.error || 'Failed to edit workflow');
       }
 
+      // Analyze what changed
+      const oldNodeCount = workflow?.nodes.length || 0;
+      const newNodeCount = data.workflow.nodes.length;
+      const nodeCountChange = newNodeCount - oldNodeCount;
+      
+      let changeMessage = '';
+      if (nodeCountChange > 0) {
+        changeMessage = `Added ${nodeCountChange} new node${nodeCountChange > 1 ? 's' : ''}`;
+      } else if (nodeCountChange < 0) {
+        changeMessage = `Removed ${Math.abs(nodeCountChange)} node${Math.abs(nodeCountChange) > 1 ? 's' : ''}`;
+      } else {
+        changeMessage = 'Modified existing nodes';
+      }
+
       setWorkflow(data.workflow);
       
-      // Show success message
+      // Show detailed success message
       setExecutionLogs((prev) => [
         ...prev,
         {
           nodeId: 'system',
+          type: 'success',
+          message: `✅ Workflow edited successfully - ${changeMessage}`,
+          timestamp: Date.now(),
+        },
+        {
+          nodeId: 'system',
           type: 'info',
-          message: `✓ ${data.message || 'Workflow updated'}`,
+          message: `🎤 Voice command: "${text}"`,
           timestamp: Date.now(),
         },
       ]);
+
+      console.log('📝 Workflow edit completed:', {
+        command: text,
+        oldNodes: oldNodeCount,
+        newNodes: newNodeCount,
+        change: changeMessage
+      });
+
     } catch (error: any) {
       console.error('Edit error:', error);
       setParseError(error.message);
+      
+      // Add error to execution logs for better visibility
+      setExecutionLogs((prev) => [
+        ...prev,
+        {
+          nodeId: 'system',
+          type: 'error',
+          message: `❌ Voice edit failed: ${error.message}`,
+          timestamp: Date.now(),
+        },
+      ]);
     } finally {
       setIsEditingWorkflow(false);
     }
@@ -974,6 +1013,26 @@ export default function Home() {
                   )}
                 </div>
               )}
+            </Card>
+          </div>
+        )}
+
+        {/* Voice Edit Tips - Show when in edit mode */}
+        {workflow && isEditMode && (
+          <div className="fixed bottom-32 left-1/2 -translate-x-1/2 pointer-events-auto z-20 max-w-2xl">
+            <Card className="p-3 bg-purple-900/90 border-purple-600/50 backdrop-blur-md shadow-2xl">
+              <div className="text-center">
+                <p className="text-xs text-purple-200 font-medium mb-1">💡 Voice Edit Examples:</p>
+                <div className="flex flex-wrap gap-2 justify-center text-[10px] text-purple-300">
+                  <span>"Remove the email step"</span>
+                  <span>•</span>
+                  <span>"Add a Slack notification after summarize"</span>
+                  <span>•</span>
+                  <span>"Replace the last node with GitHub integration"</span>
+                  <span>•</span>
+                  <span>"Add analysis in parallel to summarize"</span>
+                </div>
+              </div>
             </Card>
           </div>
         )}
