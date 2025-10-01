@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { LeftSidebar } from '@/components/LeftSidebar';
 import { FloatingMicButton } from '@/components/FloatingMicButton';
+import { VoiceInput } from '@/components/VoiceInput';
 import { WorkflowCanvas } from '@/components/WorkflowCanvas';
 import { ExecutionLogs } from '@/components/ExecutionLogs';
 import { ConfigModal } from '@/components/ConfigModal';
@@ -26,12 +27,20 @@ export default function Home() {
   const [errorNodeId, setErrorNodeId] = useState<string | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionStartTime, setExecutionStartTime] = useState<number | null>(null);
+  // Voice Edit mode (for voice-based workflow editing)
   const [isEditMode, setIsEditMode] = useState(false);
   const [isEditingWorkflow, setIsEditingWorkflow] = useState(false);
   const [useBackgroundExecution, setUseBackgroundExecution] = useState(false);
   const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(null);
   const [manualMode, setManualMode] = useState(false);
   const [selectedNodeForConfig, setSelectedNodeForConfig] = useState<WorkflowNode | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [showVoiceOverlay, setShowVoiceOverlay] = useState(false);
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   // Poll current workflow status if running in background
   useEffect(() => {
@@ -136,7 +145,7 @@ export default function Home() {
       return;
     }
     
-    if (isEditMode && workflow) {
+      if (isEditMode && workflow) {
       // Edit existing workflow
       await editWorkflow(text);
     } else {
@@ -392,6 +401,7 @@ export default function Home() {
         throw new Error('No response stream');
       }
 
+      let shouldStopOnError = false;
       while (true) {
         const { done, value } = await reader.read();
         
@@ -400,6 +410,7 @@ export default function Home() {
           console.log('SSE stream ended, stopping execution');
           setIsExecuting(false);
           setActiveNodeIds([]);
+          setExecutionStartTime(null);
           break;
         }
 
@@ -440,12 +451,16 @@ export default function Home() {
                 setErrorNodeId(data.nodeId);
                 setActiveNodeIds([]);
                 setIsExecuting(false);
+                setExecutionStartTime(null);
+                // Cancel the stream reader so we can run again immediately
+                shouldStopOnError = true;
               } else if (data.type === 'complete') {
                 // Workflow completed successfully
                 console.log('Workflow completed successfully');
                 setActiveNodeIds([]);
                 setIsExecuting(false);
                 setErrorNodeId(null);
+                setExecutionStartTime(null);
                 
                 // Add a final completion log to ensure clean state
                 const completionLog: ExecutionLog = {
@@ -460,6 +475,11 @@ export default function Home() {
               console.error('Failed to parse SSE data:', parseError);
             }
           }
+        }
+
+        if (shouldStopOnError) {
+          try { await reader.cancel(); } catch {}
+          break;
         }
       }
 
@@ -654,6 +674,7 @@ export default function Home() {
   };
 
   // Toggle edit mode
+  // Toggle Voice Edit mode
   const toggleEditMode = () => {
     setIsEditMode(!isEditMode);
     setTranscribedText('');
@@ -685,8 +706,9 @@ export default function Home() {
           onNodeClick={handleNodeClick}
           onEdgeConnect={handleEdgeConnect}
           onEdgeDelete={handleEdgeDelete}
-          isInteractive={!isExecuting && !isEditMode}
-          allowConnections={manualMode}
+          isInteractive={!isExecuting}
+          allowConnections={!isExecuting}
+          onError={(msg) => setToast(msg)}
         />
       </div>
 
@@ -702,18 +724,7 @@ export default function Home() {
           hasWorkflow={!!workflow}
         />
 
-        {/* Top Header - Floating */}
-        <div className="absolute top-6 left-44 pointer-events-auto">
-          <Card className="px-4 py-2 bg-gray-900/90 border-gray-700 backdrop-blur-md shadow-2xl">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-purple-500" />
-              <div>
-                <h1 className="text-base font-bold">AI Workflow Orchestrator</h1>
-                <p className="text-[10px] text-gray-400">Voice-powered automation</p>
-              </div>
-            </div>
-          </Card>
-        </div>
+        {/* Top Header removed per request */}
 
         {/* Center Floating Mic Button - Only show when NO workflow */}
         {!workflow && (
@@ -793,29 +804,7 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* Manual Mode Option */}
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="h-px bg-gray-700 w-full max-w-xs"></div>
-                    <Button
-                      onClick={() => {
-                        setManualMode(true);
-                        // Create empty workflow to enable manual mode
-                        setWorkflow({
-                          workflowId: `workflow-${Date.now()}`,
-                          nodes: [],
-                          edges: [],
-                        });
-                      }}
-                      variant="outline"
-                      className="gap-2 px-6 py-3 bg-blue-600/20 hover:bg-blue-600/30 border-blue-600 hover:border-blue-500 text-blue-300 hover:text-blue-200 transition-all"
-                    >
-                      <Link2 className="w-4 h-4" />
-                      Start Manual Workflow
-                    </Button>
-                    <p className="text-xs text-gray-500 text-center max-w-xs">
-                      Build your workflow by manually adding and connecting nodes
-                    </p>
-                  </div>
+                  {/* Manual Mode Option removed to simplify UI */}
                 </div>
               )}
             </div>
@@ -823,7 +812,18 @@ export default function Home() {
         )}
 
 
-        {/* Right Side - Compact Info */}
+      {/* Toast */}
+      {toast && (
+        <div className="fixed top-4 right-1/2 translate-x-1/2 md:right-6 md:translate-x-0 z-50">
+          <Card className="px-4 py-2 bg-red-900/90 border-red-700 shadow-2xl">
+            <span className="text-sm text-red-200">{toast}</span>
+          </Card>
+        </div>
+      )}
+
+      {/* Voice Edit Overlay (moved out of pointer-events-none container) */}
+
+      {/* Right Side - Compact Info */}
         <div className="absolute top-6 right-6 w-80 space-y-3 pointer-events-auto max-h-[calc(100vh-120px)] overflow-y-auto pb-20">
           {/* Transcribed Text Card - Compact */}
           {transcribedText && (
@@ -865,9 +865,9 @@ export default function Home() {
           </div>
         )}
 
-        {/* Bottom Center - Compact Workflow Controls */}
+        {/* Top Center - Compact Workflow Controls */}
         {workflow && (
-          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 pointer-events-auto z-30 w-auto">
+          <div className="fixed top-3 left-1/2 -translate-x-1/2 pointer-events-auto z-40 w-auto">
             <Card className="px-3 py-2 bg-gray-900/95 border border-gray-700 backdrop-blur-lg shadow-2xl rounded-xl">
               <div className="flex items-center gap-2">
                 {/* Run Workflow Button - Primary Action */}
@@ -891,26 +891,15 @@ export default function Home() {
                 <div className="h-6 w-px bg-gray-600"></div>
                 
                 <Button
-                  onClick={toggleEditMode}
-                  variant={isEditMode ? "default" : "outline"}
+                  onClick={() => setShowVoiceOverlay(true)}
                   size="sm"
-                  className={`gap-1 text-xs px-2 ${isEditMode ? 'bg-purple-600 hover:bg-purple-700' : 'hover:border-purple-500'}`}
-                  disabled={manualMode}
+                  className={`gap-1 text-xs px-2 bg-blue-600 hover:bg-blue-700`}
                 >
                   <Mic className="w-3 h-3" />
-                  {isEditMode ? 'Voice Edit' : 'Voice Edit'}
+                  Voice Edit
                 </Button>
 
-                <Button
-                  onClick={toggleManualMode}
-                  variant={manualMode ? "default" : "outline"}
-                  size="sm"
-                  className={`gap-1 text-xs px-2 ${manualMode ? 'bg-blue-600 hover:bg-blue-700' : 'hover:border-blue-500'}`}
-                  disabled={isEditMode}
-                >
-                  <Link2 className="w-3 h-3" />
-                  Manual Mode
-                </Button>
+                {/* Manual Mode removed - editing is always enabled */}
 
                 <div className="h-6 w-px bg-gray-600"></div>
 
@@ -932,6 +921,34 @@ export default function Home() {
         )}
 
       </div>
+
+      {/* Voice Edit Overlay - top-level to ensure clickability */}
+      {showVoiceOverlay && (
+        <div className="fixed inset-0 flex items-center justify-center z-[100]">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowVoiceOverlay(false)}></div>
+          <Card className="relative z-[101] p-4 bg-gray-900/95 border-gray-700 w-[320px] pointer-events-auto">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm font-semibold text-gray-200">Voice Edit</div>
+              <Button size="sm" variant="ghost" onClick={() => setShowVoiceOverlay(false)}>Close</Button>
+            </div>
+            <div className="text-[11px] text-gray-400 mb-2">Speak your edit. Recording starts immediately.</div>
+            <div>
+              <VoiceInput onTranscribed={async (text) => {
+                try {
+                  setShowVoiceOverlay(false);
+                  setIsEditMode(true);
+                  await editWorkflow(text);
+                } catch (e) {
+                  console.error(e);
+                  setToast('Voice edit failed. See logs for details.');
+                } finally {
+                  setIsEditMode(false);
+                }
+              }} isEditMode autoStart />
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Node Configuration Panel */}
       <NodeConfigPanel

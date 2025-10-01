@@ -16,6 +16,9 @@ import ReactFlow, {
   applyNodeChanges,
   applyEdgeChanges,
   addEdge,
+  BaseEdge,
+  EdgeLabelRenderer,
+  getBezierPath,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { motion } from 'framer-motion';
@@ -35,6 +38,7 @@ interface WorkflowCanvasProps {
   onEdgeDelete?: (edgeId: string) => void;
   isInteractive?: boolean;
   allowConnections?: boolean;
+  onError?: (message: string) => void;
 }
 
 /**
@@ -68,7 +72,7 @@ function CustomNode({ data, id }: { data: any; id: string }) {
       case 'notion_create':
         return 'from-blue-600 to-indigo-600';
       case 'llm':
-        return 'from-purple-500 to-purple-600';
+        return 'from-blue-500 to-blue-600';
       case 'email':
         return 'from-green-500 to-green-600';
       case 'tavily':
@@ -115,7 +119,7 @@ function CustomNode({ data, id }: { data: any; id: string }) {
             e.stopPropagation();
             data.onConfigure(id);
           }}
-          className="absolute -top-2 -right-2 bg-purple-500 hover:bg-purple-600 text-white rounded-full w-7 h-7 flex items-center justify-center shadow-lg transition-all opacity-0 group-hover:opacity-100 z-10"
+          className="absolute -top-2 -right-2 bg-blue-500 hover:bg-blue-600 text-white rounded-full w-7 h-7 flex items-center justify-center shadow-lg transition-all opacity-0 group-hover:opacity-100 z-10"
           title="Configure node"
         >
           <Settings className="w-3.5 h-3.5" />
@@ -168,6 +172,53 @@ const nodeTypes = {
 };
 
 /**
+ * Custom edge with a small delete button rendered at the midpoint
+ */
+function RemovableEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, data }: any) {
+  const [edgePath, labelX, labelY] = getBezierPath({
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition,
+    targetPosition,
+  });
+
+  return (
+    <>
+      <BaseEdge id={id} path={edgePath} style={{ stroke: '#8b5cf6', strokeWidth: 3 }} markerEnd={markerEnd} />
+      {data?.isInteractive && (
+        <EdgeLabelRenderer>
+          <div
+            style={{
+              position: 'absolute',
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+              pointerEvents: 'all',
+            }}
+            className="group"
+          >
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                data?.onDeleteEdge?.(id);
+              }}
+              title="Remove connection"
+              className="w-5 h-5 rounded-full bg-red-600 text-white text-xs leading-none flex items-center justify-center shadow-md opacity-80 hover:opacity-100"
+            >
+              ×
+            </button>
+          </div>
+        </EdgeLabelRenderer>
+      )}
+    </>
+  );
+}
+
+const edgeTypes = {
+  removable: RemovableEdge,
+};
+
+/**
  * WorkflowCanvas - Visualizes workflow as an animated graph
  */
 export function WorkflowCanvas({ 
@@ -182,6 +233,7 @@ export function WorkflowCanvas({
   onEdgeDelete,
   isInteractive = false,
   allowConnections = false,
+  onError,
 }: WorkflowCanvasProps) {
   // MUST call all hooks before any conditional returns!
   
@@ -235,6 +287,17 @@ export function WorkflowCanvas({
     console.log('🔗 New connection:', connection);
     
     if (!connection.source || !connection.target) return;
+    // Prevent circular/self connections
+    if (connection.source === connection.target) {
+      if (onError) onError('No circular node connections are allowed.');
+      return;
+    }
+    // Prevent duplicate edges
+    const exists = (rfEdges as Edge[]).some((e) => e.source === connection.source && e.target === connection.target);
+    if (exists) {
+      if (onError) onError('This connection already exists.');
+      return;
+    }
     
     // Add edge to local state immediately for smooth UX
     setRfEdges((eds) => addEdge({
@@ -252,7 +315,7 @@ export function WorkflowCanvas({
     if (onEdgeConnect) {
       onEdgeConnect(connection.source, connection.target);
     }
-  }, [onEdgeConnect]);
+  }, [onEdgeConnect, onError, rfEdges]);
   
   // Convert workflow nodes to React Flow nodes with smart parallel positioning
   const flowNodes: Node[] = useMemo(() => {
@@ -319,7 +382,7 @@ export function WorkflowCanvas({
       id: edge.id || `edge-${index}`,
       source: edge.source,
       target: edge.target,
-      type: 'smoothstep',
+      type: 'removable',
       animated: true,
       style: { 
         stroke: '#8b5cf6',
@@ -329,8 +392,15 @@ export function WorkflowCanvas({
         type: MarkerType.ArrowClosed,
         color: '#8b5cf6',
       },
+      data: {
+        isInteractive,
+        onDeleteEdge: (edgeId: string) => {
+          setRfEdges((current) => current.filter((e) => e.id !== edgeId));
+          if (onEdgeDelete) onEdgeDelete(edgeId);
+        },
+      },
     }));
-  }, [edges]);
+  }, [edges, isInteractive, onEdgeDelete]);
 
   // Update local state when flowNodes change
   useEffect(() => {
@@ -357,6 +427,7 @@ export function WorkflowCanvas({
         nodes={rfNodes}
         edges={rfEdges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         onNodesChange={handleNodesChange}
         onEdgesChange={handleEdgesChange}
         onConnect={handleConnect}
@@ -384,7 +455,7 @@ export function WorkflowCanvas({
       {/* Connection Instructions Overlay */}
       {allowConnections && rfNodes.length > 1 && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none">
-          <div className="bg-purple-600/90 backdrop-blur-md px-4 py-2 rounded-lg shadow-lg border border-purple-500">
+          <div className="bg-blue-600/90 backdrop-blur-md px-4 py-2 rounded-lg shadow-lg border border-blue-500">
             <p className="text-xs text-white font-medium">
               🔗 Drag from node handles to create connections
             </p>

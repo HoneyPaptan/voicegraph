@@ -149,11 +149,11 @@ export function NodeConfigPanel({ node, onClose, onSave }: NodeConfigPanelProps)
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center pointer-events-auto">
-      <Card className="w-[500px] max-h-[80vh] bg-gray-900/95 border-2 border-purple-600/50 backdrop-blur-lg shadow-2xl overflow-hidden flex flex-col">
+      <Card className="w-[500px] max-h-[80vh] bg-gray-900/95 border-2 border-blue-600/50 backdrop-blur-lg shadow-2xl overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="p-4 border-b border-gray-800 flex items-center justify-between bg-purple-600/10">
+        <div className="p-4 border-b border-gray-800 flex items-center justify-between bg-blue-600/10">
           <div className="flex items-center gap-3">
-            <Settings className="w-5 h-5 text-purple-400" />
+            <Settings className="w-5 h-5 text-blue-400" />
             <div>
               <h3 className="font-semibold text-lg">Configure Node</h3>
               <p className="text-xs text-gray-400 capitalize">
@@ -193,7 +193,7 @@ export function NodeConfigPanel({ node, onClose, onSave }: NodeConfigPanelProps)
                       value={params[config.key] || ''}
                       onChange={(e) => handleChange(config.key, e.target.value)}
                       placeholder={config.placeholder}
-                      className={`mt-1 w-full px-3 py-2 bg-gray-800 border rounded-md text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                      className={`mt-1 w-full px-3 py-2 bg-gray-800 border rounded-md text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                         errors[config.key] ? 'border-red-500' : 'border-gray-700'
                       }`}
                       rows={4}
@@ -205,7 +205,7 @@ export function NodeConfigPanel({ node, onClose, onSave }: NodeConfigPanelProps)
                       value={params[config.key] || ''}
                       onChange={(e) => handleChange(config.key, e.target.value)}
                       placeholder={config.placeholder}
-                      className={`mt-1 bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:ring-purple-500 ${
+                      className={`mt-1 bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:ring-blue-500 ${
                         errors[config.key] ? 'border-red-500' : ''
                       }`}
                     />
@@ -243,7 +243,7 @@ export function NodeConfigPanel({ node, onClose, onSave }: NodeConfigPanelProps)
           </Button>
           <Button
             onClick={handleSave}
-            className="bg-purple-600 hover:bg-purple-700 gap-2"
+            className="bg-blue-600 hover:bg-blue-700 gap-2"
           >
             <Save className="w-4 h-4" />
             Save Configuration

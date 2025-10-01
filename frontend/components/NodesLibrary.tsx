@@ -40,7 +40,7 @@ const AVAILABLE_NODES: NodeLibraryItem[] = [
     label: 'AI Processing',
     icon: <Sparkles className="w-5 h-5" />,
     description: 'Process with Cerebras AI',
-    color: 'from-purple-500 to-purple-600',
+    color: 'from-blue-500 to-blue-600',
     actions: ['summarize', 'analyze', 'extract_insights', 'transform', 'generate'],
   },
   {
@@ -104,7 +104,7 @@ export function NodesLibrary({ onAddNode }: NodesLibraryProps) {
                     <h4 className="font-semibold text-sm">{node.label}</h4>
                     <p className="text-xs text-gray-400 mt-1">{node.description}</p>
                     <div className="flex items-center gap-2 mt-2">
-                      <span className="text-[10px] text-purple-400">
+                      <span className="text-[10px] text-blue-400">
                         {node.actions.length} actions
                       </span>
                       <span className="text-[10px] text-gray-500">→ Click to view</span>
@@ -144,7 +144,7 @@ export function NodesLibrary({ onAddNode }: NodesLibraryProps) {
                 <Button
                   key={action}
                   variant="outline"
-                  className="w-full justify-between text-left h-auto py-2 px-3 bg-gray-800/30 hover:bg-purple-600/20 border-gray-700 hover:border-purple-600"
+                  className="w-full justify-between text-left h-auto py-2 px-3 bg-gray-800/30 hover:bg-blue-600/20 border-gray-700 hover:border-blue-600"
                   onClick={() => handleAddNode(selectedNode.type, action)}
                 >
                   <div>
@@ -155,7 +155,7 @@ export function NodesLibrary({ onAddNode }: NodesLibraryProps) {
                       Click to add to canvas
                     </div>
                   </div>
-                  <Plus className="w-3 h-3 text-purple-400" />
+                  <Plus className="w-3 h-3 text-blue-400" />
                 </Button>
               ))}
             </div>

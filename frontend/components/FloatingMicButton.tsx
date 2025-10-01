@@ -102,13 +102,13 @@ export function FloatingMicButton({ onTranscribed }: FloatingMicButtonProps) {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={startRecording}
-            className="relative w-24 h-24 rounded-full bg-gradient-to-br from-purple-600 to-purple-800 hover:from-purple-500 hover:to-purple-700 shadow-2xl flex items-center justify-center transition-all duration-300 group"
+            className="relative w-24 h-24 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 hover:from-blue-500 hover:to-blue-700 shadow-2xl flex items-center justify-center transition-all duration-300 group"
           >
             <Mic className="w-10 h-10 text-white" />
             
             {/* Pulse rings */}
-            <div className="absolute inset-0 rounded-full bg-purple-600 opacity-20 animate-ping"></div>
-            <div className="absolute inset-0 rounded-full bg-purple-600 opacity-10 animate-pulse"></div>
+            <div className="absolute inset-0 rounded-full bg-blue-600 opacity-20 animate-ping"></div>
+            <div className="absolute inset-0 rounded-full bg-blue-600 opacity-10 animate-pulse"></div>
           </motion.button>
         )}
 
