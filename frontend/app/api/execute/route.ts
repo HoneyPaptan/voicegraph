@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
             
             // Process results and update context
             for (const { node, result } of layerResults) {
-              if (result.success) {
+              if (result.success && 'output' in result) {
                 // Store output in context
                 context[node.id] = result.output;
                 

@@ -76,11 +76,11 @@ export async function GET() {
           responseCode: error.responseCode,
           command: error.command,
         },
-        help: {
+        help: (error.code && {
           EAUTH: 'Invalid credentials. Regenerate your Gmail app password.',
           ESOCKET: 'Cannot connect to Gmail. Check internet connection.',
           ETIMEDOUT: 'Connection timeout. Check firewall/port 587.',
-        }[error.code] || 'Unknown error. Check credentials and try again.'
+        }[error.code as string]) || 'Unknown error. Check credentials and try again.'
       },
       { status: 500 }
     );

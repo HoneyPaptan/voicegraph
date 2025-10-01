@@ -1,5 +1,5 @@
 import { WorkflowNode, ExecutionContext, NodeExecutionResult } from './types';
-import { fetchNotionPage, fetchNotionDatabase } from './tools/notion';
+import { fetchNotion, fetchNotionPage, fetchNotionDatabase } from './tools/notion';
 import { sendEmail } from './tools/email';
 import { generateContent } from './cerebras';
 
@@ -47,6 +47,7 @@ export async function executeNode(
 
 /**
  * Executes a Notion node
+ * Uses smart fetcher that auto-detects page vs database
  */
 async function executeNotionNode(
   node: WorkflowNode,
@@ -54,23 +55,19 @@ async function executeNotionNode(
 ): Promise<string> {
   const { action, params } = node;
 
-  if (action === 'fetch_page') {
-    // Prioritize user config over workflow params (which may have placeholders)
-    const pageId = context.notionPageId || params?.pageId;
-    if (!pageId) {
-      throw new Error('Notion page ID not provided. Please enter it in the configuration modal.');
-    }
-    return await fetchNotionPage(pageId);
-  } else if (action === 'fetch_database') {
-    // Prioritize user config over workflow params (which may have placeholders)
-    const databaseId = context.notionDatabaseId || params?.databaseId;
-    if (!databaseId) {
-      throw new Error('Notion database ID not provided. Please enter it in the configuration modal.');
-    }
-    return await fetchNotionDatabase(databaseId);
-  } else {
-    throw new Error(`Unknown Notion action: ${action}`);
+  // Use smart fetcher for any action type (auto-detects page vs database)
+  // Prioritize user config over workflow params
+  const notionId = context.notionPageId || context.notionDatabaseId || 
+                   params?.pageId || params?.databaseId;
+  
+  if (!notionId) {
+    throw new Error('Notion Page/Database ID not provided. Please enter it in the configuration modal.');
   }
+
+  console.log(`📄 Notion node action: ${action}, using smart fetcher for ID: ${notionId}`);
+  
+  // Smart fetcher automatically handles both pages and databases
+  return await fetchNotion(notionId);
 }
 
 /**

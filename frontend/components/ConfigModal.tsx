@@ -26,7 +26,6 @@ interface ConfigModalProps {
 export function ConfigModal({ open, onClose, onSubmit, workflowNodes }: ConfigModalProps) {
   const [config, setConfig] = useState<Record<string, string>>({
     notionPageId: '',
-    notionDatabaseId: '',
     recipientEmail: '',
   });
 
@@ -36,12 +35,7 @@ export function ConfigModal({ open, onClose, onSubmit, workflowNodes }: ConfigMo
   };
 
   // Determine which fields are needed based on workflow nodes
-  const needsNotionPage = workflowNodes.some(
-    (n) => n.type === 'notion' && n.action === 'fetch_page'
-  );
-  const needsNotionDatabase = workflowNodes.some(
-    (n) => n.type === 'notion' && n.action === 'fetch_database'
-  );
+  const needsNotion = workflowNodes.some((n) => n.type === 'notion');
   const needsEmail = workflowNodes.some((n) => n.type === 'email');
 
   return (
@@ -55,12 +49,12 @@ export function ConfigModal({ open, onClose, onSubmit, workflowNodes }: ConfigMo
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
-          {needsNotionPage && (
+          {needsNotion && (
             <div className="grid gap-2">
-              <Label htmlFor="notionPageId">Notion Page ID</Label>
+              <Label htmlFor="notionPageId">Notion ID (Page or Database)</Label>
               <Input
                 id="notionPageId"
-                placeholder="e.g., 1234567890abcdef1234567890abcdef"
+                placeholder="e.g., 27e6ddfc5f1680228444ed4170ded29e"
                 value={config.notionPageId}
                 onChange={(e) =>
                   setConfig({ ...config, notionPageId: e.target.value })
@@ -68,31 +62,10 @@ export function ConfigModal({ open, onClose, onSubmit, workflowNodes }: ConfigMo
                 className="bg-gray-800 border-gray-700 font-mono text-sm"
               />
               <p className="text-xs text-gray-500">
-                Must be a 32-character UUID without dashes. Found in page URL after notion.so/
+                32-character ID (with or without dashes). System auto-detects if it's a page or database.
               </p>
               <p className="text-xs text-yellow-500">
-                Example: notion.so/YourPageName-<span className="font-bold">1234567890abcdef1234567890abcdef</span>
-              </p>
-            </div>
-          )}
-
-          {needsNotionDatabase && (
-            <div className="grid gap-2">
-              <Label htmlFor="notionDatabaseId">Notion Database ID</Label>
-              <Input
-                id="notionDatabaseId"
-                placeholder="e.g., abcdef1234567890abcdef1234567890"
-                value={config.notionDatabaseId}
-                onChange={(e) =>
-                  setConfig({ ...config, notionDatabaseId: e.target.value })
-                }
-                className="bg-gray-800 border-gray-700 font-mono text-sm"
-              />
-              <p className="text-xs text-gray-500">
-                Must be a 32-character UUID without dashes. Found in database URL
-              </p>
-              <p className="text-xs text-yellow-500">
-                Example: notion.so/<span className="font-bold">abcdef1234567890abcdef1234567890</span>?v=...
+                Example: notion.so/meeting-notes-<span className="font-bold">27e6ddfc5f1680228444ed4170ded29e</span>
               </p>
             </div>
           )}

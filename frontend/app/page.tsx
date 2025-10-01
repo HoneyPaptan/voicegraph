@@ -1,14 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { VoiceInput } from '@/components/VoiceInput';
 import { WorkflowCanvas } from '@/components/WorkflowCanvas';
 import { ExecutionLogs } from '@/components/ExecutionLogs';
 import { ConfigModal } from '@/components/ConfigModal';
+import { WorkflowHistory } from '@/components/WorkflowHistory';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Workflow, ExecutionLog } from '@/lib/types';
-import { Sparkles, Play, RefreshCw, Loader2, Mic } from 'lucide-react';
+import { WorkflowRun } from '@/lib/workflow-history';
+import { Sparkles, Play, RefreshCw, Loader2, Mic, Zap } from 'lucide-react';
 
 export default function Home() {
   // State management
@@ -24,6 +26,92 @@ export default function Home() {
   const [executionStartTime, setExecutionStartTime] = useState<number | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isEditingWorkflow, setIsEditingWorkflow] = useState(false);
+  const [useBackgroundExecution, setUseBackgroundExecution] = useState(false);
+  const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(null);
+
+  // Poll current workflow status if running in background
+  useEffect(() => {
+    if (!currentWorkflowId || !useBackgroundExecution) return;
+    
+    let hasCompleted = false; // Track if workflow has reached terminal state
+    
+    const pollWorkflowStatus = async () => {
+      // Don't poll if already completed/failed
+      if (hasCompleted) return;
+      
+      try {
+        const response = await fetch('/api/workflow-history', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ workflowId: currentWorkflowId }),
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.run) {
+          // Update logs
+          setExecutionLogs(data.run.logs);
+          
+          // Update status based on workflow state
+          if (data.run.status === 'completed') {
+            hasCompleted = true; // Mark as completed
+            setIsExecuting(false);
+            setActiveNodeId(null);
+            setErrorNodeId(null);
+            setExecutionStartTime(null);
+            console.log('✅ Background workflow completed - stopping poll');
+            // Stop polling on completion
+            setCurrentWorkflowId(null);
+          } else if (data.run.status === 'failed') {
+            hasCompleted = true; // Mark as failed
+            setIsExecuting(false);
+            setActiveNodeId(null);
+            setExecutionStartTime(null);
+            const errorLog = data.run.logs.find((log: any) => log.type === 'error');
+            if (errorLog) {
+              setErrorNodeId(errorLog.nodeId);
+            }
+            console.log('❌ Background workflow failed - stopping poll');
+            // Stop polling on failure
+            setCurrentWorkflowId(null);
+          } else if (data.run.status === 'running') {
+            setIsExecuting(true);
+            
+            // Find the last progress log to show which node is currently executing
+            const progressLogs = data.run.logs.filter((log: any) => log.type === 'progress');
+            const successLogs = data.run.logs.filter((log: any) => log.type === 'success');
+            
+            if (progressLogs.length > 0) {
+              const lastProgress = progressLogs[progressLogs.length - 1];
+              // Only show as active if this node doesn't have a success log yet
+              const hasSuccessLog = successLogs.some((log: any) => log.nodeId === lastProgress.nodeId);
+              
+              if (!hasSuccessLog) {
+                setActiveNodeId(lastProgress.nodeId);
+              } else {
+                setActiveNodeId(null);
+              }
+            } else {
+              setActiveNodeId(null);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to poll workflow status:', error);
+      }
+    };
+    
+    // Initial fetch
+    pollWorkflowStatus();
+    
+    // Poll every second while workflow is active
+    const interval = setInterval(pollWorkflowStatus, 1000);
+    
+    return () => {
+      clearInterval(interval);
+      hasCompleted = false; // Reset on cleanup
+    };
+  }, [currentWorkflowId, useBackgroundExecution]);
 
   // Handle transcription
   const handleTranscribed = async (text: string) => {
@@ -120,9 +208,109 @@ export default function Home() {
     setShowConfigModal(true);
   };
 
+  // Execute workflow in background (Inngest)
+  const executeWorkflowBackground = async (config: Record<string, string>) => {
+    if (!workflow) return;
+
+    setIsExecuting(true);
+    setExecutionLogs([]);
+    setActiveNodeId(null);
+    setErrorNodeId(null);
+
+    try {
+      const response = await fetch('/api/execute-inngest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workflow,
+          config,
+          transcribedText,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to start background execution');
+      }
+
+      // Store workflow ID for tracking
+      setCurrentWorkflowId(data.workflowId);
+      setExecutionStartTime(Date.now());
+
+      // Show success message
+      setExecutionLogs([
+        {
+          nodeId: 'system',
+          type: 'success',
+          message: `✓ Workflow started in background (ID: ${data.workflowId.slice(0, 12)}...)`,
+          timestamp: Date.now(),
+        },
+        {
+          nodeId: 'system',
+          type: 'info',
+          message: '📊 View progress in Workflow History',
+          timestamp: Date.now(),
+        },
+      ]);
+    } catch (error: any) {
+      console.error('Background execution error:', error);
+      setExecutionLogs([
+        {
+          nodeId: 'system',
+          type: 'error',
+          message: `✗ ${error.message}`,
+          timestamp: Date.now(),
+        },
+      ]);
+    } finally {
+      setIsExecuting(false);
+    }
+  };
+
+  // Restore workflow from history
+  const handleRestoreWorkflow = (run: WorkflowRun) => {
+    console.log('Restoring workflow:', run.id);
+    
+    // Restore workflow state
+    setWorkflow(run.workflow);
+    setTranscribedText(run.transcribedText || '');
+    setExecutionLogs(run.logs);
+    setCurrentWorkflowId(run.id);
+    
+    // Set active/error nodes based on status
+    if (run.status === 'running') {
+      setIsExecuting(true);
+      const lastLog = run.logs[run.logs.length - 1];
+      if (lastLog && lastLog.type === 'progress') {
+        setActiveNodeId(lastLog.nodeId);
+      }
+    } else if (run.status === 'failed') {
+      setIsExecuting(false);
+      const errorLog = run.logs.find((log) => log.type === 'error');
+      if (errorLog) {
+        setErrorNodeId(errorLog.nodeId);
+      }
+      setActiveNodeId(null);
+    } else if (run.status === 'completed') {
+      setIsExecuting(false);
+      setActiveNodeId(null);
+      setErrorNodeId(null);
+    }
+    
+    // Clear edit mode
+    setIsEditMode(false);
+    setParseError(null);
+  };
+
   // Execute workflow with config
   const executeWorkflow = async (config: Record<string, string>) => {
     if (!workflow) return;
+
+    // Use background execution if enabled
+    if (useBackgroundExecution) {
+      return executeWorkflowBackground(config);
+    }
 
     // Reset all states
     setIsExecuting(true);
@@ -365,6 +553,28 @@ export default function Home() {
             {workflow && (
               <Card className="p-6 bg-gray-900/50 border-gray-800">
                 <div className="space-y-3">
+                  {/* Execution Mode Toggle */}
+                  <div className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg border border-gray-700">
+                    <div className="flex items-center gap-2">
+                      <Zap className={`w-4 h-4 ${useBackgroundExecution ? 'text-yellow-400' : 'text-gray-500'}`} />
+                      <span className="text-sm font-medium">Background Execution</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant={useBackgroundExecution ? "default" : "outline"}
+                      onClick={() => setUseBackgroundExecution(!useBackgroundExecution)}
+                      className={useBackgroundExecution ? 'bg-yellow-600 hover:bg-yellow-700' : ''}
+                    >
+                      {useBackgroundExecution ? 'ON' : 'OFF'}
+                    </Button>
+                  </div>
+                  
+                  {useBackgroundExecution && (
+                    <div className="p-2 bg-yellow-500/10 border border-yellow-500/30 rounded text-xs text-yellow-300">
+                      <strong>⚡ Inngest Mode:</strong> Workflow runs in background with automatic retries
+                    </div>
+                  )}
+
                   {/* Edit Workflow Button */}
                   <Button
                     onClick={toggleEditMode}
@@ -385,7 +595,7 @@ export default function Home() {
                       disabled={isEditMode}
                     >
                       <Play className="w-5 h-5" />
-                      Run Workflow
+                      {useBackgroundExecution ? 'Run in Background' : 'Run Workflow'}
                     </Button>
                   )}
                 </div>
@@ -447,6 +657,9 @@ export default function Home() {
           workflowNodes={workflow.nodes}
         />
       )}
+
+      {/* Workflow History */}
+      <WorkflowHistory onRestore={handleRestoreWorkflow} />
     </div>
   );
 }
