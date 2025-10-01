@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     };
 
     const workflowAnalysis = analyzeWorkflow(currentWorkflow);
-    const flowDescription = workflowAnalysis.map(node => 
+    const flowDescription = workflowAnalysis.map((node: any) => 
       `${node.position}. ${node.label} (${node.type}-${node.action}) - ${node.role}${
         node.incomingFrom.length > 0 ? ` ← receives from: [${node.incomingFrom.join(', ')}]` : ''
       }${
