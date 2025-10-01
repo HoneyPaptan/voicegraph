@@ -95,56 +95,56 @@ export function VoiceInput({ onTranscribed, isEditMode = false }: VoiceInputProp
   };
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="flex flex-col items-center gap-3 w-full">
       {isEditMode && (
-        <div className="text-center mb-2">
-          <span className="inline-block px-3 py-1 bg-purple-500/20 border border-purple-500 rounded-full text-purple-300 text-sm font-medium">
-            🎤 Edit Mode Active
+        <div className="text-center w-full">
+          <span className="inline-block px-2 py-1 bg-purple-500/20 border border-purple-500 rounded-full text-purple-300 text-xs font-medium">
+            🎤 Edit Mode
           </span>
-          <p className="text-xs text-gray-400 mt-2">
-            Speak to add, remove, or modify workflow nodes
+          <p className="text-[10px] text-gray-400 mt-1">
+            Speak to add, remove, or modify nodes
           </p>
         </div>
       )}
       
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 w-full justify-center">
         {!isRecording && !isProcessing && (
           <Button
             onClick={startRecording}
-            size="lg"
-            className={`gap-2 ${isEditMode ? 'bg-purple-600 hover:bg-purple-700' : ''}`}
+            size="sm"
+            className={`gap-2 w-full ${isEditMode ? 'bg-purple-600 hover:bg-purple-700' : ''}`}
           >
-            <Mic className="w-5 h-5" />
-            {isEditMode ? 'Record Edit Command' : 'Start Recording'}
+            <Mic className="w-4 h-4" />
+            {isEditMode ? 'Record Edit' : 'Start Recording'}
           </Button>
         )}
 
         {isRecording && (
           <Button
             onClick={stopRecording}
-            size="lg"
+            size="sm"
             variant="destructive"
-            className="gap-2 animate-pulse"
+            className="gap-2 animate-pulse w-full"
           >
-            <Square className="w-5 h-5" />
+            <Square className="w-4 h-4" />
             Stop Recording
           </Button>
         )}
 
         {isProcessing && (
           <Button
-            size="lg"
+            size="sm"
             disabled
-            className="gap-2"
+            className="gap-2 w-full"
           >
-            <Loader2 className="w-5 h-5 animate-spin" />
+            <Loader2 className="w-4 h-4 animate-spin" />
             Transcribing...
           </Button>
         )}
       </div>
 
       {error && (
-        <div className="text-red-500 text-sm text-center max-w-md">
+        <div className="text-red-500 text-xs text-center w-full">
           {error}
         </div>
       )}

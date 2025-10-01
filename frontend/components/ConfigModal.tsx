@@ -27,6 +27,7 @@ export function ConfigModal({ open, onClose, onSubmit, workflowNodes }: ConfigMo
   const [config, setConfig] = useState<Record<string, string>>({
     notionPageId: '',
     recipientEmail: '',
+    githubRepoUrl: '',
   });
 
   const handleSubmit = () => {
@@ -36,7 +37,12 @@ export function ConfigModal({ open, onClose, onSubmit, workflowNodes }: ConfigMo
 
   // Determine which fields are needed based on workflow nodes
   const needsNotion = workflowNodes.some((n) => n.type === 'notion');
+  const needsNotionCreate = workflowNodes.some((n) => n.type === 'notion_create');
   const needsEmail = workflowNodes.some((n) => n.type === 'email');
+  const needsGitHub = workflowNodes.some((n) => 
+    n.type === 'github' && 
+    (n.action === 'get_issues' || n.action === 'fetch_issues' || n.action === 'create_issue')
+  );
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -66,6 +72,44 @@ export function ConfigModal({ open, onClose, onSubmit, workflowNodes }: ConfigMo
               </p>
               <p className="text-xs text-yellow-500">
                 Example: notion.so/meeting-notes-<span className="font-bold">27e6ddfc5f1680228444ed4170ded29e</span>
+              </p>
+            </div>
+          )}
+
+          {needsNotionCreate && (
+            <div className="grid gap-2">
+              <div className="p-3 bg-blue-900/20 border border-blue-600/30 rounded-md">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                  <Label className="text-blue-300 font-medium">Notion Page Creation</Label>
+                </div>
+                <p className="text-xs text-blue-200">
+                  ✅ Default database configured - pages will be created automatically
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Optional: Override with a specific page or database ID above
+                </p>
+              </div>
+            </div>
+          )}
+
+          {needsGitHub && (
+            <div className="grid gap-2">
+              <Label htmlFor="githubRepoUrl">GitHub Repository</Label>
+              <Input
+                id="githubRepoUrl"
+                placeholder="e.g., HoneyPaptan/my-repo or https://github.com/owner/repo"
+                value={config.githubRepoUrl}
+                onChange={(e) =>
+                  setConfig({ ...config, githubRepoUrl: e.target.value })
+                }
+                className="bg-gray-800 border-gray-700 font-mono text-sm"
+              />
+              <p className="text-xs text-gray-500">
+                Repository URL or owner/repo format for GitHub operations.
+              </p>
+              <p className="text-xs text-yellow-500">
+                Examples: <span className="font-bold">owner/repo</span> or full GitHub URL
               </p>
             </div>
           )}

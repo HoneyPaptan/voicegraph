@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -10,21 +10,30 @@ import ReactFlow, {
   MarkerType,
   Handle,
   NodeChange,
+  EdgeChange,
+  Connection,
   applyNodeChanges,
+  applyEdgeChanges,
+  addEdge,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { motion } from 'framer-motion';
 import { WorkflowNode as WFNode, WorkflowEdge } from '@/lib/types';
-import { Database, Sparkles, Mail } from 'lucide-react';
+import { Database, Sparkles, Mail, Search, Github, FileEdit, Settings } from 'lucide-react';
 import { analyzeParallelWorkflow, calculateParallelPositions } from '@/lib/parallel-executor';
 
 interface WorkflowCanvasProps {
   nodes: WFNode[];
   edges: WorkflowEdge[];
-  activeNodeId?: string | null;
-  onNodePositionUpdate?: (nodeId: string, position: { x: number; y: number }) => void;
+  activeNodeIds?: string[];
+  errorNodeId?: string | null;
+  onNodeDragStop?: (nodeId: string, position: { x: number; y: number }) => void;
   onNodeDelete?: (nodeId: string) => void;
+  onNodeClick?: (nodeId: string) => void;
+  onEdgeConnect?: (source: string, target: string) => void;
+  onEdgeDelete?: (edgeId: string) => void;
   isInteractive?: boolean;
+  allowConnections?: boolean;
 }
 
 /**
@@ -35,10 +44,17 @@ function CustomNode({ data, id }: { data: any; id: string }) {
     switch (data.type) {
       case 'notion':
         return <Database className="w-5 h-5" />;
+      case 'notion_create':
+        return <FileEdit className="w-5 h-5" />;
       case 'llm':
         return <Sparkles className="w-5 h-5" />;
       case 'email':
         return <Mail className="w-5 h-5" />;
+      case 'tavily':
+      case 'web_search':
+        return <Search className="w-5 h-5" />;
+      case 'github':
+        return <Github className="w-5 h-5" />;
       default:
         return null;
     }
@@ -48,10 +64,17 @@ function CustomNode({ data, id }: { data: any; id: string }) {
     switch (data.type) {
       case 'notion':
         return 'from-blue-500 to-blue-600';
+      case 'notion_create':
+        return 'from-blue-600 to-indigo-600';
       case 'llm':
         return 'from-purple-500 to-purple-600';
       case 'email':
         return 'from-green-500 to-green-600';
+      case 'tavily':
+      case 'web_search':
+        return 'from-orange-500 to-orange-600';
+      case 'github':
+        return 'from-gray-700 to-gray-800';
       default:
         return 'from-gray-500 to-gray-600';
     }
@@ -61,6 +84,7 @@ function CustomNode({ data, id }: { data: any; id: string }) {
   const isError = data.isError;
   const isParallel = data.isParallel;
   const isInteractive = data.isInteractive;
+  const hasConfig = data.hasConfig;
 
   return (
     <motion.div
@@ -69,7 +93,7 @@ function CustomNode({ data, id }: { data: any; id: string }) {
       transition={{ duration: 0.3, delay: data.delay }}
       className={`
         px-4 py-3 rounded-lg shadow-lg bg-gradient-to-br ${getColor()}
-        text-white min-w-[180px] border-2 relative
+        text-white min-w-[180px] border-2 relative group
         ${isActive ? 'border-yellow-400 ring-4 ring-yellow-400/50 animate-pulse' : ''}
         ${isError ? 'border-red-500 ring-4 ring-red-500/50' : ''}
         ${!isActive && !isError ? 'border-white/20' : ''}
@@ -78,9 +102,23 @@ function CustomNode({ data, id }: { data: any; id: string }) {
     >
       {/* Parallel indicator badge */}
       {isParallel && (
-        <div className="absolute -top-2 -right-2 bg-cyan-500 text-white text-xs px-2 py-0.5 rounded-full font-bold shadow-lg">
+        <div className="absolute -top-2 -right-2 bg-cyan-500 text-white text-xs px-2 py-0.5 rounded-full font-bold shadow-lg z-10">
           ⚡
         </div>
+      )}
+      
+      {/* Configure button - shows on hover */}
+      {hasConfig && data.onConfigure && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            data.onConfigure(id);
+          }}
+          className="absolute -top-2 -right-2 bg-purple-500 hover:bg-purple-600 text-white rounded-full w-7 h-7 flex items-center justify-center shadow-lg transition-all opacity-0 group-hover:opacity-100 z-10"
+          title="Configure node"
+        >
+          <Settings className="w-3.5 h-3.5" />
+        </button>
       )}
       
       {/* Delete button - only show if interactive */}
@@ -90,10 +128,10 @@ function CustomNode({ data, id }: { data: any; id: string }) {
             e.stopPropagation();
             data.onDelete(id);
           }}
-          className="absolute -top-2 -left-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg transition-colors group"
+          className="absolute -top-2 -left-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg transition-colors opacity-0 group-hover:opacity-100 z-10"
           title="Delete node"
         >
-          <span className="text-sm font-bold group-hover:scale-110 transition-transform">×</span>
+          <span className="text-sm font-bold">×</span>
         </button>
       )}
 
@@ -134,38 +172,86 @@ const nodeTypes = {
 export function WorkflowCanvas({ 
   nodes, 
   edges, 
-  activeNodeId,
-  onNodePositionUpdate,
+  activeNodeIds = [],
+  errorNodeId,
+  onNodeDragStop,
   onNodeDelete,
+  onNodeClick,
+  onEdgeConnect,
+  onEdgeDelete,
   isInteractive = false,
+  allowConnections = false,
 }: WorkflowCanvasProps) {
   // MUST call all hooks before any conditional returns!
   
-  // Local state for React Flow nodes (allows dragging to work)
+  // Local state for React Flow nodes and edges (allows smooth interactions)
   const [rfNodes, setRfNodes] = useState<Node[]>([]);
+  const [rfEdges, setRfEdges] = useState<Edge[]>([]);
   
-  // Handle node deletion
-  const handleNodeDelete = (nodeId: string) => {
+  // Handle node deletion - memoized for performance
+  const handleNodeDelete = useCallback((nodeId: string) => {
     if (onNodeDelete) {
       onNodeDelete(nodeId);
     }
-  };
+  }, [onNodeDelete]);
+
+  // Handle node configuration - memoized for performance
+  const handleNodeConfigure = useCallback((nodeId: string) => {
+    console.log('⚙️ Opening configuration for node:', nodeId);
+    if (onNodeClick) {
+      onNodeClick(nodeId);
+    }
+  }, [onNodeClick]);
   
-  // Handle React Flow node changes (for dragging)
-  const handleNodesChange = (changes: NodeChange[]) => {
-    if (!isInteractive) return;
-    
+  // Handle React Flow node changes (for dragging) - No state updates during drag
+  const handleNodesChange = useCallback((changes: NodeChange[]) => {
+    // Apply changes to local state only (smooth dragging)
     setRfNodes((nds) => applyNodeChanges(changes, nds));
+  }, []);
+  
+  // Save position only when drag is complete (no lag!) - memoized
+  const handleNodeDragStop = useCallback((_event: any, node: Node) => {
+    console.log('📍 Drag complete, saving position for:', node.id, node.position);
+    if (onNodeDragStop && node.position) {
+      onNodeDragStop(node.id, node.position);
+    }
+  }, [onNodeDragStop]);
+
+  // Handle edge changes (for manual connections)
+  const handleEdgesChange = useCallback((changes: EdgeChange[]) => {
+    setRfEdges((eds) => applyEdgeChanges(changes, eds));
     
-    // Update parent component with new positions as user drags
+    // Handle edge deletions
     changes.forEach((change) => {
-      if (change.type === 'position' && change.position) {
-        if (onNodePositionUpdate) {
-          onNodePositionUpdate(change.id, change.position);
-        }
+      if (change.type === 'remove' && onEdgeDelete) {
+        onEdgeDelete(change.id);
       }
     });
-  };
+  }, [onEdgeDelete]);
+
+  // Handle new edge connections
+  const handleConnect = useCallback((connection: Connection) => {
+    console.log('🔗 New connection:', connection);
+    
+    if (!connection.source || !connection.target) return;
+    
+    // Add edge to local state immediately for smooth UX
+    setRfEdges((eds) => addEdge({
+      ...connection,
+      type: 'smoothstep',
+      animated: true,
+      style: { stroke: '#8b5cf6', strokeWidth: 3 },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        color: '#8b5cf6',
+      },
+    }, eds));
+    
+    // Notify parent component
+    if (onEdgeConnect) {
+      onEdgeConnect(connection.source, connection.target);
+    }
+  }, [onEdgeConnect]);
   
   // Convert workflow nodes to React Flow nodes with smart parallel positioning
   const flowNodes: Node[] = useMemo(() => {
@@ -202,12 +288,14 @@ export function WorkflowCanvas({
             type: node.type,
             action: node.action,
             delay: layerIndex * 0.2,
-            isActive: node.id === activeNodeId,
-            isError: false,
+            isActive: activeNodeIds.includes(node.id),
+            isError: node.id === errorNodeId,
             isParallel: layer.nodes.length > 1,
             parallelCount: layer.nodes.length,
             isInteractive: isInteractive,
+            hasConfig: true, // All nodes can be configured
             onDelete: isInteractive ? handleNodeDelete : undefined,
+            onConfigure: handleNodeConfigure,
           },
           sourcePosition: Position.Bottom,
           targetPosition: Position.Top,
@@ -218,13 +306,8 @@ export function WorkflowCanvas({
     
     // Return nodes in original order for consistent rendering
     return nodes.map(node => nodeMap.get(node.id)!).filter(Boolean);
-  }, [nodes, edges, activeNodeId, isInteractive]);
+  }, [nodes, edges, activeNodeIds, errorNodeId, isInteractive]);
   
-  // Update local state when flowNodes change
-  useEffect(() => {
-    setRfNodes(flowNodes);
-  }, [flowNodes]);
-
   // Convert workflow edges to React Flow edges with beautiful styling
   const flowEdges: Edge[] = useMemo(() => {
     if (!edges || edges.length === 0) {
@@ -248,38 +331,65 @@ export function WorkflowCanvas({
     }));
   }, [edges]);
 
+  // Update local state when flowNodes change
+  useEffect(() => {
+    setRfNodes(flowNodes);
+  }, [flowNodes]);
+
+  // Update local edges when flowEdges change
+  useEffect(() => {
+    setRfEdges(flowEdges);
+  }, [flowEdges]);
+
   // NOW check for empty state after all hooks
   if (nodes.length === 0) {
     return (
-      <div className="h-full flex items-center justify-center text-gray-400">
-        <div className="text-center">
-          <Sparkles className="w-12 h-12 mx-auto mb-2 opacity-50" />
-          <p>No workflow yet. Record a voice command to begin!</p>
-        </div>
+      <div className="h-full w-full bg-gray-950">
+        {/* Clean empty state - no overlay text */}
       </div>
     );
   }
 
   return (
-    <div className="h-full w-full">
+    <div className="h-full w-full bg-gray-950">
       <ReactFlow
         nodes={rfNodes}
-        edges={flowEdges}
+        edges={rfEdges}
         nodeTypes={nodeTypes}
         onNodesChange={handleNodesChange}
+        onEdgesChange={handleEdgesChange}
+        onConnect={handleConnect}
+        onNodeDragStop={handleNodeDragStop}
         fitView
         fitViewOptions={{ padding: 0.2 }}
         minZoom={0.5}
         maxZoom={1.5}
-        nodesDraggable={isInteractive}
-        nodesConnectable={false}
-        elementsSelectable={isInteractive}
-        zoomOnScroll={!isInteractive}
-        panOnDrag={!isInteractive}
+        nodesDraggable={true}
+        nodesConnectable={allowConnections}
+        elementsSelectable={true}
+        zoomOnScroll={true}
+        panOnDrag={true}
+        // Performance optimizations
+        proOptions={{ hideAttribution: true }}
+        deleteKeyCode="Delete"
+        // Connection styling
+        connectionLineStyle={{ stroke: '#8b5cf6', strokeWidth: 3 }}
+        connectionLineType="smoothstep"
       >
-        <Background color="#334155" gap={16} />
-        <Controls />
+        <Background color="#1f2937" gap={20} size={1} />
+        <Controls className="bg-gray-900/90 border-gray-700" />
       </ReactFlow>
+      
+      {/* Connection Instructions Overlay */}
+      {allowConnections && rfNodes.length > 1 && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none">
+          <div className="bg-purple-600/90 backdrop-blur-md px-4 py-2 rounded-lg shadow-lg border border-purple-500">
+            <p className="text-xs text-white font-medium">
+              🔗 Drag from node handles to create connections
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -322,3 +322,379 @@ export async function fetchNotionDatabase(databaseId: string): Promise<string> {
   }
 }
 
+/**
+ * Creates a new page in Notion - can be in a database or as a standalone page
+ * @param parentId - The parent database ID, page ID, or null for workspace page
+ * @param title - Page title
+ * @param content - Text content for the page body
+ * @param properties - Additional properties for database pages
+ * @returns Success message with page URL
+ */
+export async function createNotionPage(
+  parentId: string | null,
+  title: string,
+  content?: string,
+  properties?: Record<string, any>
+): Promise<{ success: boolean; data?: string; error?: string; pageUrl?: string }> {
+  const notionApiKey = process.env.NOTION_API_KEY;
+
+  if (!notionApiKey) {
+    console.error('❌ NOTION_API_KEY not found in environment variables');
+    return {
+      success: false,
+      error: 'Notion API key not configured',
+    };
+  }
+
+  const notion = new Client({ auth: notionApiKey });
+  
+  // Determine parent and page structure
+  let parent: any;
+  let pageProperties: any = {};
+  let isDatabase = false;
+
+  if (parentId) {
+    const cleanParentId = parentId.trim().replace(/['"]/g, '');
+    const formattedParentId = formatNotionId(cleanParentId);
+    
+    console.log(`📝 Creating Notion page with parent: ${formattedParentId}`);
+    console.log(`   Title: "${title}"`);
+    
+    // Try to determine if it's a database or page by attempting database retrieval
+    try {
+      await notion.databases.retrieve({ database_id: formattedParentId });
+      isDatabase = true;
+      parent = { database_id: formattedParentId };
+      console.log('🗄️ Parent is a database');
+      
+      // Build properties for database page
+      pageProperties = {
+        Name: {
+          title: [
+            {
+              text: {
+                content: title,
+              },
+            },
+          ],
+        },
+      };
+
+      // Add additional properties if provided
+      if (properties) {
+        Object.entries(properties).forEach(([key, value]) => {
+          if (key !== 'Name' && key !== 'title') {
+            // Handle different property types
+            if (typeof value === 'string') {
+              pageProperties[key] = {
+                rich_text: [{ text: { content: value } }],
+              };
+            } else if (typeof value === 'boolean') {
+              pageProperties[key] = { checkbox: value };
+            } else if (typeof value === 'number') {
+              pageProperties[key] = { number: value };
+            }
+          }
+        });
+      }
+    } catch (dbError) {
+      // Not a database, try as a page
+      try {
+        await notion.pages.retrieve({ page_id: formattedParentId });
+        isDatabase = false;
+        parent = { page_id: formattedParentId };
+        console.log('📄 Parent is a page');
+        
+        // For page parents, we use title property differently
+        pageProperties = {
+          title: [
+            {
+              text: {
+                content: title,
+              },
+            },
+          ],
+        };
+      } catch (pageError) {
+        console.error('❌ Parent ID is neither a valid database nor page');
+        return {
+          success: false,
+          error: `Invalid parent ID: Not a valid database or page ID. Make sure the resource is shared with your integration.`,
+        };
+      }
+    }
+  } else {
+    // No parent provided - create standalone page (requires a parent page in Notion)
+    console.log('📝 Creating standalone Notion page');
+    console.log('⚠️ Note: Creating as a child of your workspace root');
+    
+    // For standalone pages, we need to use the workspace or find a default parent
+    // Since Notion API requires a parent, we'll create it with title properties
+    // and let the user's workspace handle it
+    pageProperties = {
+      title: [
+        {
+          text: {
+            content: title,
+          },
+        },
+      ],
+    };
+    
+    // We'll try to create without parent first, then handle the error
+    parent = null;
+  }
+
+  try {
+    let response: any;
+    
+    if (parent) {
+      // Create with specific parent
+      const createPayload: any = {
+        parent: parent,
+        properties: isDatabase ? pageProperties : { title: pageProperties.title },
+      };
+      
+      response = await notion.pages.create(createPayload);
+    } else {
+      // Try to create standalone page - this will likely fail with Notion API
+      // so we'll catch and provide a helpful error message
+      try {
+        response = await notion.pages.create({
+          parent: { workspace: true } as any, // This isn't officially supported
+          properties: { title: pageProperties.title },
+        });
+      } catch (workspaceError) {
+        // Try to create a default "Workflow Results" parent page and use it
+        console.log('💡 Attempting to create a "Workflow Results" parent page...');
+        const parentPageResult = await createWorkflowResultsPage();
+        
+        if (parentPageResult.success && parentPageResult.pageId) {
+          console.log('✅ Created parent page, now creating child page...');
+          
+          try {
+            response = await notion.pages.create({
+              parent: { page_id: parentPageResult.pageId },
+              properties: { title: pageProperties.title },
+            });
+          } catch (childError) {
+            return {
+              success: false,
+              error: `Created parent page but failed to create child page: ${childError instanceof Error ? childError.message : 'Unknown error'}`,
+            };
+          }
+        } else {
+          return {
+            success: false,
+            error: `Cannot create standalone page. Notion API requires a parent page or database. 
+
+Possible solutions:
+1. Provide a page ID in configuration (any existing Notion page)
+2. Provide a database ID in configuration  
+3. Create a "Workflow Results" page in Notion manually and use its ID
+
+Attempted auto-creation failed: ${parentPageResult.error || 'Unknown error'}`,
+          };
+        }
+      }
+    }
+
+    console.log(`✅ Page created with ID: ${response.id}`);
+
+    // Add content blocks if provided
+    if (content && content.trim().length > 0) {
+      console.log('📄 Adding content blocks to page...');
+      
+      // Split content into paragraphs
+      const paragraphs = content.split('\n').filter(p => p.trim().length > 0);
+      
+      const blocks = paragraphs.map((paragraph) => ({
+        object: 'block' as const,
+        type: 'paragraph' as const,
+        paragraph: {
+          rich_text: [
+            {
+              type: 'text' as const,
+              text: {
+                content: paragraph,
+              },
+            },
+          ],
+        },
+      }));
+
+      await notion.blocks.children.append({
+        block_id: response.id,
+        children: blocks,
+      });
+
+      console.log(`✅ Added ${blocks.length} content blocks`);
+    }
+
+    const pageUrl = response.url || `https://notion.so/${response.id.replace(/-/g, '')}`;
+    const parentType = isDatabase ? 'database' : (parentId ? 'page' : 'workspace');
+    
+    return {
+      success: true,
+      pageUrl,
+      data: `# Notion Page Created Successfully! 🎉\n\n**Title:** ${title}\n**Parent Type:** ${parentType}\n**URL:** ${pageUrl}\n\nYour page has been created and is ready to use!`,
+    };
+  } catch (error: any) {
+    console.error('❌ Notion page creation failed:', error);
+    
+    let errorMessage = `Failed to create Notion page: ${error.message}`;
+    
+    if (error.code === 'object_not_found') {
+      errorMessage = 'Parent resource not found. Make sure the ID is correct and shared with your integration.';
+    } else if (error.code === 'unauthorized') {
+      errorMessage = 'Unauthorized. Make sure the parent resource is shared with your Notion integration.';
+    } else if (error.code === 'validation_error') {
+      errorMessage = `Validation error: ${error.message}. Check that the properties match the expected format.`;
+    }
+
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
+}
+
+/**
+ * Creates a default "Workflow Results" parent page for the user
+ * This can be used as a fallback parent when no specific parent is provided
+ * @returns Page ID of the created parent page
+ */
+export async function createWorkflowResultsPage(): Promise<{ success: boolean; pageId?: string; error?: string }> {
+  const notionApiKey = process.env.NOTION_API_KEY;
+
+  if (!notionApiKey) {
+    return {
+      success: false,
+      error: 'Notion API key not configured',
+    };
+  }
+
+  const notion = new Client({ auth: notionApiKey });
+
+  try {
+    console.log('📁 Creating "Workflow Results" parent page...');
+    
+    // Create a page with basic structure
+    const response: any = await notion.pages.create({
+      parent: { type: 'workspace', workspace: true } as any,
+      properties: {
+        title: {
+          title: [
+            {
+              text: {
+                content: '🤖 Workflow Results',
+              },
+            },
+          ],
+        },
+      },
+      children: [
+        {
+          object: 'block',
+          type: 'paragraph',
+          paragraph: {
+            rich_text: [
+              {
+                type: 'text',
+                text: {
+                  content: 'This page contains results from automated workflows. Each workflow run creates a child page with its results.',
+                },
+              },
+            ],
+          },
+        },
+        {
+          object: 'block',
+          type: 'divider',
+          divider: {},
+        },
+      ],
+    });
+
+    console.log(`✅ Created Workflow Results page with ID: ${response.id}`);
+    
+    return {
+      success: true,
+      pageId: response.id,
+    };
+  } catch (error: any) {
+    console.error('❌ Failed to create Workflow Results page:', error);
+    return {
+      success: false,
+      error: `Failed to create parent page: ${error.message}`,
+    };
+  }
+}
+
+/**
+ * Appends content to an existing Notion page
+ * @param pageId - The page ID to append to
+ * @param content - Text content to append
+ * @returns Success confirmation
+ */
+export async function appendToNotionPage(
+  pageId: string,
+  content: string
+): Promise<{ success: boolean; data?: string; error?: string }> {
+  const notionApiKey = process.env.NOTION_API_KEY;
+
+  if (!notionApiKey) {
+    console.error('❌ NOTION_API_KEY not found in environment variables');
+    return {
+      success: false,
+      error: 'Notion API key not configured',
+    };
+  }
+
+  const cleanPageId = pageId.trim().replace(/['"]/g, '');
+  const formattedPageId = formatNotionId(cleanPageId);
+
+  console.log(`➕ Appending content to Notion page: ${formattedPageId}`);
+
+  const notion = new Client({ auth: notionApiKey });
+
+  try {
+    // Split content into paragraphs
+    const paragraphs = content.split('\n').filter(p => p.trim().length > 0);
+    
+    const blocks = paragraphs.map((paragraph) => ({
+      object: 'block' as const,
+      type: 'paragraph' as const,
+      paragraph: {
+        rich_text: [
+          {
+            type: 'text' as const,
+            text: {
+              content: paragraph,
+            },
+          },
+        ],
+      },
+    }));
+
+    await notion.blocks.children.append({
+      block_id: formattedPageId,
+      children: blocks,
+    });
+
+    console.log(`✅ Appended ${blocks.length} blocks to page`);
+
+    return {
+      success: true,
+      data: `Successfully appended ${blocks.length} block(s) to the Notion page.`,
+    };
+  } catch (error: any) {
+    console.error('❌ Failed to append to Notion page:', error);
+    
+    return {
+      success: false,
+      error: `Failed to append content: ${error.message}`,
+    };
+  }
+}
+
