@@ -43,7 +43,7 @@ export function LeftSidebar({
         <Button 
           variant="default"
           size="default"
-          className="fixed top-6 left-6 gap-2 bg-purple-600 hover:bg-purple-700 shadow-2xl z-50 font-semibold border-2 border-purple-500"
+          className="fixed top-6 left-6 gap-2 bg-purple-600 hover:bg-purple-700 shadow-2xl z-50 font-semibold border-2 border-purple-500 pointer-events-auto"
         >
           <Menu className="w-5 h-5" />
           Tools Menu
