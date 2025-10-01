@@ -12,6 +12,7 @@ import ReactFlow, {
   NodeChange,
   EdgeChange,
   Connection,
+  ConnectionLineType,
   applyNodeChanges,
   applyEdgeChanges,
   addEdge,
@@ -374,7 +375,7 @@ export function WorkflowCanvas({
         deleteKeyCode="Delete"
         // Connection styling
         connectionLineStyle={{ stroke: '#8b5cf6', strokeWidth: 3 }}
-        connectionLineType="smoothstep"
+        connectionLineType={ConnectionLineType.SmoothStep}
       >
         <Background color="#1f2937" gap={20} size={1} />
         <Controls className="bg-gray-900/90 border-gray-700" />

@@ -1,13 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { VoiceInput } from '@/components/VoiceInput';
+import { LeftSidebar } from '@/components/LeftSidebar';
 import { FloatingMicButton } from '@/components/FloatingMicButton';
 import { WorkflowCanvas } from '@/components/WorkflowCanvas';
 import { ExecutionLogs } from '@/components/ExecutionLogs';
 import { ConfigModal } from '@/components/ConfigModal';
 import { WorkflowHistory } from '@/components/WorkflowHistory';
-import { NodesLibrary } from '@/components/NodesLibrary';
 import { NodeConfigPanel } from '@/components/NodeConfigPanel';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -693,14 +692,24 @@ export default function Home() {
 
       {/* Floating UI Elements */}
       <div className="relative z-10 pointer-events-none">
+        {/* Left Sidebar - Collapsible Tools */}
+        <LeftSidebar
+          onTranscribed={handleTranscribed}
+          onLoadExample={loadExample}
+          onAddNode={handleAddNode}
+          manualMode={manualMode}
+          onToggleManualMode={() => setManualMode(!manualMode)}
+          hasWorkflow={!!workflow}
+        />
+
         {/* Top Header - Floating */}
-        <div className="absolute top-6 left-6 pointer-events-auto">
-          <Card className="px-4 py-3 bg-gray-900/90 border-gray-700 backdrop-blur-md shadow-2xl">
-            <div className="flex items-center gap-3">
-              <Sparkles className="w-6 h-6 text-purple-500" />
+        <div className="absolute top-6 left-44 pointer-events-auto">
+          <Card className="px-4 py-2 bg-gray-900/90 border-gray-700 backdrop-blur-md shadow-2xl">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-purple-500" />
               <div>
-                <h1 className="text-lg font-bold">AI Workflow Orchestrator</h1>
-                <p className="text-xs text-gray-400">Voice-powered automation</p>
+                <h1 className="text-base font-bold">AI Workflow Orchestrator</h1>
+                <p className="text-[10px] text-gray-400">Voice-powered automation</p>
               </div>
             </div>
           </Card>
@@ -750,32 +759,35 @@ export default function Home() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl">
                       <Button
                         variant="outline"
-                        className="h-auto py-4 px-5 bg-gray-900/50 hover:bg-gray-800/70 border-gray-700 hover:border-purple-600 transition-all"
-                        onClick={() => loadExample('Get my Notion meeting notes and email me a summary')}
+                        className="h-auto py-4 px-5 bg-gray-900/50 hover:bg-gray-800/70 border-gray-700 hover:border-green-600 transition-all group"
+                        onClick={() => loadExample('Get recent commits from my GitHub repository, analyze the code changes, and create a Notion page with development summary')}
                       >
                         <div className="text-center">
-                          <div className="font-semibold text-sm mb-1">Meeting Notes Summary</div>
-                          <div className="text-xs text-gray-400">Notion → Summarize → Email</div>
+                          <div className="font-semibold text-sm mb-1 text-green-300 group-hover:text-green-200">Dev Progress Tracker</div>
+                          <div className="text-xs text-gray-400">GitHub → Analyze Changes → Notion</div>
+                          <div className="text-[10px] text-green-600 mt-1">🚀 Development</div>
                         </div>
                       </Button>
                       <Button
                         variant="outline"
-                        className="h-auto py-4 px-5 bg-gray-900/50 hover:bg-gray-800/70 border-gray-700 hover:border-purple-600 transition-all"
-                        onClick={() => loadExample('Fetch my Notion project tasks and send me a status update')}
+                        className="h-auto py-4 px-5 bg-gray-900/50 hover:bg-gray-800/70 border-gray-700 hover:border-blue-600 transition-all group"
+                        onClick={() => loadExample('Search for latest AI news, analyze trends and innovations, then email me market insights report')}
                       >
                         <div className="text-center">
-                          <div className="font-semibold text-sm mb-1">Project Status Update</div>
-                          <div className="text-xs text-gray-400">Notion → Analyze → Email</div>
+                          <div className="font-semibold text-sm mb-1 text-blue-300 group-hover:text-blue-200">Market Intelligence</div>
+                          <div className="text-xs text-gray-400">Web Search → Trend Analysis → Email</div>
+                          <div className="text-[10px] text-blue-600 mt-1">📊 Research</div>
                         </div>
                       </Button>
                       <Button
                         variant="outline"
-                        className="h-auto py-4 px-5 bg-gray-900/50 hover:bg-gray-800/70 border-gray-700 hover:border-purple-600 transition-all"
-                        onClick={() => loadExample('Get my weekly Notion journal and email me key insights')}
+                        className="h-auto py-4 px-5 bg-gray-900/50 hover:bg-gray-800/70 border-gray-700 hover:border-orange-600 transition-all group"
+                        onClick={() => loadExample('Get my Notion project tasks, search for best practices, analyze both together, and email me an action plan with recommendations')}
                       >
                         <div className="text-center">
-                          <div className="font-semibold text-sm mb-1">Weekly Insights</div>
-                          <div className="text-xs text-gray-400">Notion → Extract Insights → Email</div>
+                          <div className="font-semibold text-sm mb-1 text-orange-300 group-hover:text-orange-200">Smart Action Planner</div>
+                          <div className="text-xs text-gray-400">Multi-source → AI Planning → Email</div>
+                          <div className="text-[10px] text-orange-600 mt-1">⚡ Productivity</div>
                         </div>
                       </Button>
                     </div>
@@ -810,102 +822,29 @@ export default function Home() {
           </div>
         )}
 
-        {/* Left Side - Voice Input & Templates - Only show when workflow EXISTS */}
-        {workflow && (
-          <div className="absolute top-32 left-6 w-80 space-y-4 pointer-events-auto">
-          {/* Voice Input Card */}
-          <Card className="p-4 bg-gray-900/90 border-gray-700 backdrop-blur-md shadow-2xl">
-            <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
-              <Mic className="w-4 h-4" />
-              {isEditMode ? 'Edit Workflow' : 'Voice Input'}
-            </h2>
-            <VoiceInput onTranscribed={handleTranscribed} isEditMode={isEditMode} />
-            
-            {(isParsingWorkflow || isEditingWorkflow) && (
-              <div className="mt-3 flex items-center justify-center gap-2 text-blue-400 text-xs">
-                <Loader2 className="w-3 h-3 animate-spin" />
-                {isEditingWorkflow ? 'Updating...' : 'Parsing with Cerebras AI...'}
-              </div>
-            )}
-          </Card>
 
-          {/* Quick Examples Card */}
-          <Card className="p-4 bg-gray-900/90 border-gray-700 backdrop-blur-md shadow-2xl">
-            <h2 className="text-sm font-semibold mb-3">Quick Templates</h2>
-            <div className="space-y-2">
-              <Button
-                variant="outline"
-                className="w-full justify-start text-left h-auto py-2 px-3 bg-gray-800/50 hover:bg-gray-700/50 border-gray-600"
-                onClick={() => loadExample('Get my Notion meeting notes and email me a summary')}
-              >
-                <div>
-                  <div className="font-medium text-xs">Meeting Notes Summary</div>
-                  <div className="text-[10px] text-gray-400">Notion → Summarize → Email</div>
-                </div>
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start text-left h-auto py-2 px-3 bg-gray-800/50 hover:bg-gray-700/50 border-gray-600"
-                onClick={() => loadExample('Fetch my Notion project tasks and send me a status update')}
-              >
-                <div>
-                  <div className="font-medium text-xs">Project Status Update</div>
-                  <div className="text-[10px] text-gray-400">Notion → Analyze → Email</div>
-                </div>
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start text-left h-auto py-2 px-3 bg-gray-800/50 hover:bg-gray-700/50 border-gray-600"
-                onClick={() => loadExample('Get my weekly Notion journal and email me key insights')}
-              >
-                <div>
-                  <div className="font-medium text-xs">Weekly Insights</div>
-                  <div className="text-[10px] text-gray-400">Notion → Extract Insights → Email</div>
-                </div>
-              </Button>
-            </div>
-          </Card>
-
-          {/* Parse Error Card */}
-          {parseError && (
-            <Card className="p-4 bg-red-900/90 border-red-700 backdrop-blur-md shadow-2xl">
-              <h2 className="text-sm font-semibold mb-2 text-red-400">Parse Error</h2>
-              <p className="text-red-300 text-xs mb-3">{parseError}</p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full"
-                onClick={() => parseWorkflow(transcribedText)}
-              >
-                Retry
-              </Button>
-            </Card>
-          )}
-          </div>
-        )}
-
-        {/* Right Side - Transcribed Text & Execution Logs */}
-        <div className="absolute top-6 right-6 w-96 space-y-4 pointer-events-auto max-h-[calc(100vh-180px)] overflow-y-auto pb-32">
-          {/* Transcribed Text Card */}
+        {/* Right Side - Compact Info */}
+        <div className="absolute top-6 right-6 w-80 space-y-3 pointer-events-auto max-h-[calc(100vh-120px)] overflow-y-auto pb-20">
+          {/* Transcribed Text Card - Compact */}
           {transcribedText && (
-            <Card className="p-4 bg-gray-900/90 border-gray-700 backdrop-blur-md shadow-2xl">
-              <h2 className="text-sm font-semibold mb-2">Transcribed Text</h2>
-              <p className="text-gray-300 text-xs leading-relaxed">{transcribedText}</p>
+            <Card className="p-3 bg-gray-900/90 border-gray-700 backdrop-blur-md shadow-2xl">
+              <h2 className="text-xs font-semibold mb-1 text-gray-300">Transcribed Text</h2>
+              <p className="text-gray-400 text-[10px] leading-relaxed line-clamp-3">{transcribedText}</p>
             </Card>
           )}
 
-          {/* Execution Logs */}
+          {/* Execution Logs - Compact */}
           {executionLogs.length > 0 && (
-            <Card className="p-4 bg-gray-900/90 border-gray-700 backdrop-blur-md shadow-2xl">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-semibold">Execution Logs</h2>
+            <Card className="p-3 bg-gray-900/90 border-gray-700 backdrop-blur-md shadow-2xl">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-xs font-semibold text-gray-300">Execution Logs</h2>
                 {executionTime && !isExecuting && (
-                  <span className="text-xs text-green-400">
+                  <span className="text-[10px] text-green-400 font-mono">
                     {executionTime}s
                   </span>
                 )}
               </div>
-              <div className="max-h-96 overflow-y-auto pr-2">
+              <div className="max-h-40 overflow-y-auto pr-1">
                 <ExecutionLogs logs={executionLogs} />
               </div>
             </Card>
@@ -926,121 +865,74 @@ export default function Home() {
           </div>
         )}
 
-        {/* Bottom Center - Workflow Controls - Always visible when workflow exists */}
+        {/* Bottom Center - Compact Workflow Controls */}
         {workflow && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 pointer-events-auto z-30 w-auto">
-            <Card className="px-4 py-3 bg-gray-900/95 border-2 border-gray-700 backdrop-blur-lg shadow-2xl rounded-2xl">
-              {/* Main Controls Row */}
-              <div className="flex items-center gap-3">
+          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 pointer-events-auto z-30 w-auto">
+            <Card className="px-3 py-2 bg-gray-900/95 border border-gray-700 backdrop-blur-lg shadow-2xl rounded-xl">
+              <div className="flex items-center gap-2">
                 {/* Run Workflow Button - Primary Action */}
                 {!isExecuting ? (
                   <Button
                     onClick={handleRunWorkflow}
-                    size="lg"
-                    className="gap-2 bg-green-600 hover:bg-green-700 font-semibold px-6 shadow-lg"
+                    size="sm"
+                    className="gap-1 bg-green-600 hover:bg-green-700 font-medium px-3 text-xs"
                     disabled={isEditMode}
                   >
-                    <Play className="w-5 h-5" />
-                    Run Workflow
+                    <Play className="w-3 h-3" />
+                    Run
                   </Button>
                 ) : (
-                  <div className="flex items-center gap-2 px-5 py-2.5 bg-blue-600/20 rounded-lg border-2 border-blue-600 shadow-lg">
-                    <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
-                    <span className="text-sm text-blue-400 font-semibold">Executing...</span>
+                  <div className="flex items-center gap-1 px-2 py-1 bg-blue-600/20 rounded border border-blue-600">
+                    <Loader2 className="w-3 h-3 animate-spin text-blue-400" />
+                    <span className="text-xs text-blue-400 font-medium">Executing</span>
                   </div>
                 )}
 
-                {/* Separator */}
-                <div className="h-10 w-px bg-gray-600"></div>
+                <div className="h-6 w-px bg-gray-600"></div>
                 
                 <Button
                   onClick={toggleEditMode}
                   variant={isEditMode ? "default" : "outline"}
-                  size="default"
-                  className={`gap-2 ${isEditMode ? 'bg-purple-600 hover:bg-purple-700 border-purple-600' : 'border-gray-600 hover:border-purple-500'}`}
+                  size="sm"
+                  className={`gap-1 text-xs px-2 ${isEditMode ? 'bg-purple-600 hover:bg-purple-700' : 'hover:border-purple-500'}`}
                   disabled={manualMode}
                 >
-                  <Mic className="w-4 h-4" />
-                  {isEditMode ? '🎤 Voice Edit Active' : 'Voice Edit'}
+                  <Mic className="w-3 h-3" />
+                  {isEditMode ? 'Voice Edit' : 'Voice Edit'}
                 </Button>
 
                 <Button
                   onClick={toggleManualMode}
                   variant={manualMode ? "default" : "outline"}
-                  size="default"
-                  className={`gap-2 ${manualMode ? 'bg-blue-600 hover:bg-blue-700 border-blue-600' : 'border-gray-600 hover:border-blue-500'}`}
+                  size="sm"
+                  className={`gap-1 text-xs px-2 ${manualMode ? 'bg-blue-600 hover:bg-blue-700' : 'hover:border-blue-500'}`}
                   disabled={isEditMode}
                 >
-                  <Link2 className="w-4 h-4" />
-                  {manualMode ? '🔗 Manual Mode' : 'Manual Mode'}
+                  <Link2 className="w-3 h-3" />
+                  Manual Mode
                 </Button>
 
-                {/* Separator */}
-                <div className="h-10 w-px bg-gray-600"></div>
+                <div className="h-6 w-px bg-gray-600"></div>
 
-                {/* Background Execution Toggle */}
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-800/70 rounded-lg border border-gray-600">
-                  <Zap className={`w-4 h-4 ${useBackgroundExecution ? 'text-yellow-400' : 'text-gray-500'}`} />
-                  <span className="text-xs font-medium text-gray-300">Background</span>
+                {/* Background Execution Toggle - Compact */}
+                <div className="flex items-center gap-1">
+                  <Zap className={`w-3 h-3 ${useBackgroundExecution ? 'text-yellow-400' : 'text-gray-500'}`} />
                   <Button
                     size="sm"
                     variant={useBackgroundExecution ? "default" : "outline"}
                     onClick={() => setUseBackgroundExecution(!useBackgroundExecution)}
-                    className={`h-6 text-xs px-3 font-medium ${useBackgroundExecution ? 'bg-yellow-600 hover:bg-yellow-700 border-yellow-600' : 'border-gray-600'}`}
+                    className={`h-5 text-[10px] px-1.5 ${useBackgroundExecution ? 'bg-yellow-600 hover:bg-yellow-700' : ''}`}
                   >
-                    {useBackgroundExecution ? 'ON' : 'OFF'}
+                    {useBackgroundExecution ? 'BG' : 'BG'}
                   </Button>
                 </div>
               </div>
-
-              {/* Compact Mode Hints */}
-              {(isEditMode || manualMode) && (
-                <div className="mt-2 pt-2 border-t border-gray-700/50">
-                  {isEditMode && (
-                    <div className="text-center">
-                      <p className="text-[11px] text-purple-300">
-                        <strong>🎤 Voice Edit Mode:</strong> Record to add, remove, or modify nodes
-                      </p>
-                    </div>
-                  )}
-                  
-                  {manualMode && (
-                    <div className="text-center">
-                      <p className="text-[11px] text-blue-300">
-                        <strong>🔗 Manual Mode:</strong> Click "Nodes Library" to add nodes • Drag from handles to connect
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
             </Card>
           </div>
         )}
 
-        {/* Voice Edit Tips - Show when in edit mode */}
-        {workflow && isEditMode && (
-          <div className="fixed bottom-32 left-1/2 -translate-x-1/2 pointer-events-auto z-20 max-w-2xl">
-            <Card className="p-3 bg-purple-900/90 border-purple-600/50 backdrop-blur-md shadow-2xl">
-              <div className="text-center">
-                <p className="text-xs text-purple-200 font-medium mb-1">💡 Voice Edit Examples:</p>
-                <div className="flex flex-wrap gap-2 justify-center text-[10px] text-purple-300">
-                  <span>"Remove the email step"</span>
-                  <span>•</span>
-                  <span>"Add a Slack notification after summarize"</span>
-                  <span>•</span>
-                  <span>"Replace the last node with GitHub integration"</span>
-                  <span>•</span>
-                  <span>"Add analysis in parallel to summarize"</span>
-                </div>
-              </div>
-            </Card>
-          </div>
-        )}
       </div>
 
-      {/* Nodes Library - Shows when manual mode is enabled or always available */}
-      {manualMode && <NodesLibrary onAddNode={handleAddNode} />}
-      
       {/* Node Configuration Panel */}
       <NodeConfigPanel
         node={selectedNodeForConfig}
