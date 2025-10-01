@@ -16,6 +16,7 @@ interface NodeLibraryItem {
 
 interface NodesLibraryProps {
   onAddNode: (type: string, action: string) => void;
+  compact?: boolean;
 }
 
 const AVAILABLE_NODES: NodeLibraryItem[] = [
@@ -69,7 +70,7 @@ const AVAILABLE_NODES: NodeLibraryItem[] = [
   },
 ];
 
-export function NodesLibrary({ onAddNode }: NodesLibraryProps) {
+export function NodesLibrary({ onAddNode, compact = false }: NodesLibraryProps) {
   const [selectedNode, setSelectedNode] = useState<NodeLibraryItem | null>(null);
 
   const handleAddNode = (type: string, action: string) => {
@@ -78,6 +79,55 @@ export function NodesLibrary({ onAddNode }: NodesLibraryProps) {
     console.log(`✅ Added ${type} node with action: ${action}`);
   };
 
+  // Compact rendering used for inline panel
+  if (compact) {
+    return (
+      <div className="space-y-2">
+        {!selectedNode ? (
+          <div className="grid grid-cols-1 gap-2">
+            {AVAILABLE_NODES.map((node) => (
+              <Button
+                key={node.type}
+                variant="outline"
+                className="justify-start h-8 text-xs bg-gray-900/50 border-gray-700 hover:bg-gray-800/70"
+                onClick={() => setSelectedNode(node)}
+              >
+                <span className={`inline-flex items-center gap-2`}>
+                  <span className={`p-1 rounded bg-gradient-to-br ${node.color}`}>{node.icon}</span>
+                  {node.label}
+                </span>
+              </Button>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedNode(null)}
+              className="text-xs justify-start h-8 px-2 text-gray-300 hover:text-white hover:bg-gray-800/60"
+            >
+              <span className="mr-1">←</span>
+              Back to nodes
+            </Button>
+            {selectedNode.actions.map((action) => (
+              <Button
+                key={action}
+                variant="outline"
+                className="justify-between h-8 text-xs bg-gray-900/50 border-gray-700 hover:bg-gray-800/70"
+                onClick={() => handleAddNode(selectedNode.type, action)}
+              >
+                <span className="capitalize">{action.replace(/_/g, ' ')}</span>
+                <Plus className="w-3 h-3 text-blue-400" />
+              </Button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Default verbose rendering (used in sidebar sheet)
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -85,10 +135,8 @@ export function NodesLibrary({ onAddNode }: NodesLibraryProps) {
         <p className="text-xs text-gray-400">Click to add nodes</p>
       </div>
 
-      {/* Content */}
       <div className="space-y-3">
         {!selectedNode ? (
-          // Node Types List
           <div className="space-y-3">
             {AVAILABLE_NODES.map((node) => (
               <Card
@@ -115,7 +163,6 @@ export function NodesLibrary({ onAddNode }: NodesLibraryProps) {
             ))}
           </div>
         ) : (
-          // Selected Node Actions
           <div>
             <Button
               variant="ghost"

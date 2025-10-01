@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
-import { NodesLibrary } from './NodesLibrary';
 import { Menu, Sparkles, BookOpen } from 'lucide-react';
 
 interface LeftSidebarProps {
@@ -34,7 +33,7 @@ export function LeftSidebar({
   hasWorkflow
 }: LeftSidebarProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'templates' | 'nodes'>('templates');
+  const [activeTab, setActiveTab] = useState<'templates'>('templates');
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -64,15 +63,6 @@ export function LeftSidebar({
           >
             <BookOpen className="w-3 h-3" />
             Templates
-          </Button>
-          <Button
-            variant={activeTab === 'nodes' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setActiveTab('nodes')}
-            className="flex-1 gap-1"
-          >
-            <Sparkles className="w-3 h-3" />
-            Nodes
           </Button>
         </div>
 
@@ -129,11 +119,7 @@ export function LeftSidebar({
             </div>
           )}
 
-          {activeTab === 'nodes' && (
-            <div className="space-y-4">
-              <NodesLibrary onAddNode={onAddNode} />
-            </div>
-          )}
+          
         </div>
 
         {/* Manual Mode Toggle */}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { LeftSidebar } from '@/components/LeftSidebar';
+import { NodesLibrary } from '@/components/NodesLibrary';
 import { FloatingMicButton } from '@/components/FloatingMicButton';
 import { VoiceInput } from '@/components/VoiceInput';
 import { WorkflowCanvas } from '@/components/WorkflowCanvas';
@@ -114,6 +115,16 @@ export default function Home() {
               );
             
             setActiveNodeIds(activeNodes);
+
+            // If there's an error log while status still 'running', treat as failed and stop UI
+            const errorLog = data.run.logs.find((log: any) => log.type === 'error');
+            if (errorLog) {
+              hasCompleted = true;
+              setIsExecuting(false);
+              setErrorNodeId(errorLog.nodeId || null);
+              setActiveNodeIds([]);
+              setCurrentWorkflowId(null);
+            }
           }
         }
       } catch (error) {
@@ -297,7 +308,7 @@ export default function Home() {
       setCurrentWorkflowId(data.workflowId);
       setExecutionStartTime(Date.now());
 
-      // Show success message
+      // Immediately mark UI as running; polling will transition to running when history updates
       setExecutionLogs([
         {
           nodeId: 'system',
@@ -724,6 +735,16 @@ export default function Home() {
           hasWorkflow={!!workflow}
         />
 
+        {/* Inline Nodes Library - show only when a workflow exists */}
+        {workflow && (
+          <div className="fixed top-1/2 left-6 -translate-y-1/2 pointer-events-auto z-30 w-56 hidden md:block">
+            <Card className="p-3 bg-gray-900/95 border-gray-700 backdrop-blur-md shadow-2xl overflow-y-auto max-h-[70vh]">
+              <div className="text-xs font-semibold mb-2 text-gray-300">Add Nodes</div>
+              <NodesLibrary onAddNode={handleAddNode} compact />
+            </Card>
+          </div>
+        )}
+
         {/* Top Header removed per request */}
 
         {/* Center Floating Mic Button - Only show when NO workflow */}
@@ -766,40 +787,39 @@ export default function Home() {
                 <div className="w-full space-y-6">
                   {/* Templates Section */}
                   <div>
-                    <p className="text-center text-gray-400 text-sm mb-4">or choose a template</p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl">
+                    <p className="text-center text-gray-400 text-sm mb-3">or quick templates</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 max-w-3xl mx-auto">
                       <Button
                         variant="outline"
-                        className="h-auto py-4 px-5 bg-gray-900/50 hover:bg-gray-800/70 border-gray-700 hover:border-green-600 transition-all group"
+                        className="h-10 px-4 bg-gray-900/50 hover:bg-gray-800/70 border-gray-700 hover:border-green-600 transition-all text-green-300 hover:text-green-200"
                         onClick={() => loadExample('Get recent commits from my GitHub repository, analyze the code changes, and create a Notion page with development summary')}
                       >
-                        <div className="text-center">
-                          <div className="font-semibold text-sm mb-1 text-green-300 group-hover:text-green-200">Dev Progress Tracker</div>
-                          <div className="text-xs text-gray-400">GitHub → Analyze Changes → Notion</div>
-                          <div className="text-[10px] text-green-600 mt-1">🚀 Development</div>
-                        </div>
+                        Dev Progress Tracker
                       </Button>
                       <Button
                         variant="outline"
-                        className="h-auto py-4 px-5 bg-gray-900/50 hover:bg-gray-800/70 border-gray-700 hover:border-blue-600 transition-all group"
+                        className="h-10 px-4 bg-gray-900/50 hover:bg-gray-800/70 border-gray-700 hover:border-blue-600 transition-all text-blue-300 hover:text-blue-200"
                         onClick={() => loadExample('Search for latest AI news, analyze trends and innovations, then email me market insights report')}
                       >
-                        <div className="text-center">
-                          <div className="font-semibold text-sm mb-1 text-blue-300 group-hover:text-blue-200">Market Intelligence</div>
-                          <div className="text-xs text-gray-400">Web Search → Trend Analysis → Email</div>
-                          <div className="text-[10px] text-blue-600 mt-1">📊 Research</div>
-                        </div>
+                        Market Intelligence
                       </Button>
                       <Button
                         variant="outline"
-                        className="h-auto py-4 px-5 bg-gray-900/50 hover:bg-gray-800/70 border-gray-700 hover:border-orange-600 transition-all group"
+                        className="h-10 px-4 bg-gray-900/50 hover:bg-gray-800/70 border-gray-700 hover:border-orange-600 transition-all text-orange-300 hover:text-orange-200"
                         onClick={() => loadExample('Get my Notion project tasks, search for best practices, analyze both together, and email me an action plan with recommendations')}
                       >
-                        <div className="text-center">
-                          <div className="font-semibold text-sm mb-1 text-orange-300 group-hover:text-orange-200">Smart Action Planner</div>
-                          <div className="text-xs text-gray-400">Multi-source → AI Planning → Email</div>
-                          <div className="text-[10px] text-orange-600 mt-1">⚡ Productivity</div>
-                        </div>
+                        Smart Action Planner
+                      </Button>
+                    </div>
+                    <div className="mt-4 flex items-center justify-center">
+                      <Button
+                        variant="outline"
+                        className="h-10 px-4 bg-gray-900/50 hover:bg-gray-800/70 border-gray-700"
+                        onClick={() => {
+                          setWorkflow({ workflowId: `workflow-${Date.now()}`, nodes: [], edges: [] });
+                        }}
+                      >
+                        Start from blank
                       </Button>
                     </div>
                   </div>

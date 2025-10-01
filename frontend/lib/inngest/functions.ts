@@ -11,7 +11,9 @@ import { workflowHistory } from '../workflow-history';
 export const executeWorkflowFunction = inngest.createFunction(
   { 
     id: 'execute-workflow',
-    name: 'Execute VoiceGraph Workflow'
+    name: 'Execute VoiceGraph Workflow',
+    // Disable retries: if any step throws, the function fails immediately
+    retries: 0,
   },
   { event: 'workflow/execute.requested' },
   async ({ event, step }) => {
