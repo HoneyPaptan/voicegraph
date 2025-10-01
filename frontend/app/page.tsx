@@ -28,6 +28,8 @@ export default function Home() {
   const [isEditingWorkflow, setIsEditingWorkflow] = useState(false);
   const [useBackgroundExecution, setUseBackgroundExecution] = useState(false);
   const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(null);
+  const [isNodeManipulationMode, setIsNodeManipulationMode] = useState(false);
+  const [tempNodePositions, setTempNodePositions] = useState<Record<string, { x: number; y: number }>>({});
 
   // Poll current workflow status if running in background
   useEffect(() => {
@@ -415,6 +417,71 @@ export default function Home() {
     }
   };
 
+  // Handle node position updates during drag
+  const handleNodePositionUpdate = (nodeId: string, position: { x: number; y: number }) => {
+    console.log('📍 Updating position for node:', nodeId, position);
+    setTempNodePositions(prev => ({
+      ...prev,
+      [nodeId]: position,
+    }));
+  };
+
+  // Save all node positions when exiting edit mode
+  const saveNodePositions = () => {
+    if (!workflow || Object.keys(tempNodePositions).length === 0) return;
+    
+    console.log('💾 Saving all node positions:', tempNodePositions);
+    
+    const updatedNodes = workflow.nodes.map(node => {
+      if (tempNodePositions[node.id]) {
+        return {
+          ...node,
+          position: tempNodePositions[node.id],
+        };
+      }
+      return node;
+    });
+    
+    setWorkflow({
+      ...workflow,
+      nodes: updatedNodes,
+    });
+    
+    // Clear temp positions
+    setTempNodePositions({});
+  };
+
+  // Toggle node manipulation mode
+  const toggleNodeManipulationMode = () => {
+    if (isNodeManipulationMode) {
+      // Exiting edit mode - save positions
+      saveNodePositions();
+    }
+    setIsNodeManipulationMode(!isNodeManipulationMode);
+    if (isEditMode) setIsEditMode(false);
+  };
+
+  // Handle node deletion
+  const handleNodeDelete = (nodeId: string) => {
+    if (!workflow) return;
+    
+    console.log('🗑️ Deleting node:', nodeId);
+    
+    // Remove node from workflow
+    const updatedNodes = workflow.nodes.filter(n => n.id !== nodeId);
+    
+    // Remove edges connected to this node
+    const updatedEdges = workflow.edges.filter(
+      e => e.source !== nodeId && e.target !== nodeId
+    );
+    
+    setWorkflow({
+      ...workflow,
+      nodes: updatedNodes,
+      edges: updatedEdges,
+    });
+  };
+
   // Reset workflow
   const handleReset = () => {
     setTranscribedText('');
@@ -426,6 +493,7 @@ export default function Home() {
     setIsExecuting(false);
     setExecutionStartTime(null);
     setIsEditMode(false);
+    setIsNodeManipulationMode(false);
   };
 
   // Toggle edit mode
@@ -575,15 +643,28 @@ export default function Home() {
                     </div>
                   )}
 
+                  {/* Node Manipulation Mode Toggle */}
+                  <Button
+                    onClick={toggleNodeManipulationMode}
+                    variant={isNodeManipulationMode ? "default" : "outline"}
+                    size="lg"
+                    className={`w-full gap-2 ${isNodeManipulationMode ? 'bg-orange-600 hover:bg-orange-700' : ''}`}
+                    disabled={isExecuting}
+                  >
+                    <RefreshCw className="w-5 h-5" />
+                    {isNodeManipulationMode ? '💾 Save & Exit' : '✏️ Edit Nodes'}
+                  </Button>
+                  
                   {/* Edit Workflow Button */}
                   <Button
                     onClick={toggleEditMode}
                     variant={isEditMode ? "default" : "outline"}
                     size="lg"
                     className={`w-full gap-2 ${isEditMode ? 'bg-purple-600 hover:bg-purple-700' : ''}`}
+                    disabled={isNodeManipulationMode}
                   >
                     <Mic className="w-5 h-5" />
-                    {isEditMode ? '✓ Edit Mode Active' : '🎙️ Edit Workflow'}
+                    {isEditMode ? '✓ Voice Edit Active' : '🎙️ Voice Edit'}
                   </Button>
                   
                   {/* Run Workflow Button */}
@@ -592,7 +673,7 @@ export default function Home() {
                       onClick={handleRunWorkflow}
                       size="lg"
                       className="w-full gap-2"
-                      disabled={isEditMode}
+                      disabled={isEditMode || isNodeManipulationMode}
                     >
                       <Play className="w-5 h-5" />
                       {useBackgroundExecution ? 'Run in Background' : 'Run Workflow'}
@@ -607,6 +688,17 @@ export default function Home() {
                       • "Add a Slack notification step"<br/>
                       • "Remove the email step"<br/>
                       • "Add another summary step before email"
+                    </p>
+                  </div>
+                )}
+                
+                {isNodeManipulationMode && (
+                  <div className="mt-4 p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+                    <p className="text-xs text-orange-300">
+                      <strong>✏️ Node Edit Mode:</strong><br/>
+                      • <strong>Drag</strong> nodes to reposition<br/>
+                      • Click <strong>×</strong> button to delete node<br/>
+                      • Edges update automatically
                     </p>
                   </div>
                 )}
@@ -641,6 +733,9 @@ export default function Home() {
                   nodes={workflow?.nodes || []}
                   edges={workflow?.edges || []}
                   activeNodeId={activeNodeId}
+                  onNodePositionUpdate={handleNodePositionUpdate}
+                  onNodeDelete={handleNodeDelete}
+                  isInteractive={isNodeManipulationMode && !isExecuting && !isEditMode}
                 />
               </div>
             </Card>

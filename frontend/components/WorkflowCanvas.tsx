@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -9,6 +9,8 @@ import ReactFlow, {
   Position,
   MarkerType,
   Handle,
+  NodeChange,
+  applyNodeChanges,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { motion } from 'framer-motion';
@@ -20,12 +22,15 @@ interface WorkflowCanvasProps {
   nodes: WFNode[];
   edges: WorkflowEdge[];
   activeNodeId?: string | null;
+  onNodePositionUpdate?: (nodeId: string, position: { x: number; y: number }) => void;
+  onNodeDelete?: (nodeId: string) => void;
+  isInteractive?: boolean;
 }
 
 /**
  * Custom node component with animations and icons
  */
-function CustomNode({ data }: { data: any }) {
+function CustomNode({ data, id }: { data: any; id: string }) {
   const getIcon = () => {
     switch (data.type) {
       case 'notion':
@@ -55,6 +60,7 @@ function CustomNode({ data }: { data: any }) {
   const isActive = data.isActive;
   const isError = data.isError;
   const isParallel = data.isParallel;
+  const isInteractive = data.isInteractive;
 
   return (
     <motion.div
@@ -67,6 +73,7 @@ function CustomNode({ data }: { data: any }) {
         ${isActive ? 'border-yellow-400 ring-4 ring-yellow-400/50 animate-pulse' : ''}
         ${isError ? 'border-red-500 ring-4 ring-red-500/50' : ''}
         ${!isActive && !isError ? 'border-white/20' : ''}
+        ${isInteractive ? 'hover:ring-2 hover:ring-white/50 cursor-move' : ''}
       `}
     >
       {/* Parallel indicator badge */}
@@ -75,6 +82,21 @@ function CustomNode({ data }: { data: any }) {
           ⚡
         </div>
       )}
+      
+      {/* Delete button - only show if interactive */}
+      {isInteractive && data.onDelete && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            data.onDelete(id);
+          }}
+          className="absolute -top-2 -left-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg transition-colors group"
+          title="Delete node"
+        >
+          <span className="text-sm font-bold group-hover:scale-110 transition-transform">×</span>
+        </button>
+      )}
+
       {/* Input Handle - Connection point for incoming edges */}
       <Handle
         type="target"
@@ -109,8 +131,41 @@ const nodeTypes = {
 /**
  * WorkflowCanvas - Visualizes workflow as an animated graph
  */
-export function WorkflowCanvas({ nodes, edges, activeNodeId }: WorkflowCanvasProps) {
+export function WorkflowCanvas({ 
+  nodes, 
+  edges, 
+  activeNodeId,
+  onNodePositionUpdate,
+  onNodeDelete,
+  isInteractive = false,
+}: WorkflowCanvasProps) {
   // MUST call all hooks before any conditional returns!
+  
+  // Local state for React Flow nodes (allows dragging to work)
+  const [rfNodes, setRfNodes] = useState<Node[]>([]);
+  
+  // Handle node deletion
+  const handleNodeDelete = (nodeId: string) => {
+    if (onNodeDelete) {
+      onNodeDelete(nodeId);
+    }
+  };
+  
+  // Handle React Flow node changes (for dragging)
+  const handleNodesChange = (changes: NodeChange[]) => {
+    if (!isInteractive) return;
+    
+    setRfNodes((nds) => applyNodeChanges(changes, nds));
+    
+    // Update parent component with new positions as user drags
+    changes.forEach((change) => {
+      if (change.type === 'position' && change.position) {
+        if (onNodePositionUpdate) {
+          onNodePositionUpdate(change.id, change.position);
+        }
+      }
+    });
+  };
   
   // Convert workflow nodes to React Flow nodes with smart parallel positioning
   const flowNodes: Node[] = useMemo(() => {
@@ -131,14 +186,16 @@ export function WorkflowCanvas({ nodes, edges, activeNodeId }: WorkflowCanvasPro
       const yPosition = layerIndex * verticalSpacing + 50;
       
       layer.nodes.forEach((node) => {
-        const xPosition = xPositions.get(node.id) || canvasWidth / 2;
+        // Use saved position if exists, otherwise calculate
+        const xPosition = node.position?.x ?? (xPositions.get(node.id) || canvasWidth / 2);
+        const yPos = node.position?.y ?? yPosition;
         
         nodeMap.set(node.id, {
           id: node.id,
           type: 'custom',
           position: { 
             x: xPosition, 
-            y: yPosition 
+            y: yPos
           },
           data: {
             label: node.label || node.type.toUpperCase(),
@@ -149,16 +206,24 @@ export function WorkflowCanvas({ nodes, edges, activeNodeId }: WorkflowCanvasPro
             isError: false,
             isParallel: layer.nodes.length > 1,
             parallelCount: layer.nodes.length,
+            isInteractive: isInteractive,
+            onDelete: isInteractive ? handleNodeDelete : undefined,
           },
           sourcePosition: Position.Bottom,
           targetPosition: Position.Top,
+          draggable: isInteractive,
         });
       });
     });
     
     // Return nodes in original order for consistent rendering
     return nodes.map(node => nodeMap.get(node.id)!).filter(Boolean);
-  }, [nodes, edges, activeNodeId]);
+  }, [nodes, edges, activeNodeId, isInteractive]);
+  
+  // Update local state when flowNodes change
+  useEffect(() => {
+    setRfNodes(flowNodes);
+  }, [flowNodes]);
 
   // Convert workflow edges to React Flow edges with beautiful styling
   const flowEdges: Edge[] = useMemo(() => {
@@ -198,16 +263,19 @@ export function WorkflowCanvas({ nodes, edges, activeNodeId }: WorkflowCanvasPro
   return (
     <div className="h-full w-full">
       <ReactFlow
-        nodes={flowNodes}
+        nodes={rfNodes}
         edges={flowEdges}
         nodeTypes={nodeTypes}
+        onNodesChange={handleNodesChange}
         fitView
         fitViewOptions={{ padding: 0.2 }}
         minZoom={0.5}
         maxZoom={1.5}
-        nodesDraggable={false}
+        nodesDraggable={isInteractive}
         nodesConnectable={false}
-        elementsSelectable={false}
+        elementsSelectable={isInteractive}
+        zoomOnScroll={!isInteractive}
+        panOnDrag={!isInteractive}
       >
         <Background color="#334155" gap={16} />
         <Controls />

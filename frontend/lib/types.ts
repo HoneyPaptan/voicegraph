@@ -12,6 +12,7 @@ export interface WorkflowNode {
   action: string;
   params?: Record<string, any>;
   label?: string;
+  position?: { x: number; y: number };
 }
 
 /**
