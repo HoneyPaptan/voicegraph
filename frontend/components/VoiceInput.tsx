@@ -1,24 +1,34 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Mic, Square, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 
 interface VoiceInputProps {
   onTranscribed: (text: string) => void;
   isEditMode?: boolean;
+  autoStart?: boolean;
 }
 
 /**
  * VoiceInput component - Records audio and transcribes using Groq Whisper
  */
-export function VoiceInput({ onTranscribed, isEditMode = false }: VoiceInputProps) {
+export function VoiceInput({ onTranscribed, isEditMode = false, autoStart = false }: VoiceInputProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+
+  // Auto-start recording when requested (e.g., from Voice Edit quick action)
+  useEffect(() => {
+    if (autoStart && !isRecording && !isProcessing) {
+      startRecording();
+    }
+    // We intentionally exclude startRecording to avoid re-creating effect
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart]);
 
   const startRecording = async () => {
     try {
@@ -98,7 +108,7 @@ export function VoiceInput({ onTranscribed, isEditMode = false }: VoiceInputProp
     <div className="flex flex-col items-center gap-3 w-full">
       {isEditMode && (
         <div className="text-center w-full">
-          <span className="inline-block px-2 py-1 bg-purple-500/20 border border-purple-500 rounded-full text-purple-300 text-xs font-medium">
+          <span className="inline-block px-2 py-1 bg-blue-500/20 border border-blue-500 rounded-full text-blue-300 text-xs font-medium">
             🎤 Edit Mode
           </span>
           <p className="text-[10px] text-gray-400 mt-1">
@@ -112,7 +122,7 @@ export function VoiceInput({ onTranscribed, isEditMode = false }: VoiceInputProp
           <Button
             onClick={startRecording}
             size="sm"
-            className={`gap-2 w-full ${isEditMode ? 'bg-purple-600 hover:bg-purple-700' : ''}`}
+            className={`gap-2 w-full ${isEditMode ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
           >
             <Mic className="w-4 h-4" />
             {isEditMode ? 'Record Edit' : 'Start Recording'}

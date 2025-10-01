@@ -4,9 +4,8 @@ import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
-import { VoiceInput } from './VoiceInput';
 import { NodesLibrary } from './NodesLibrary';
-import { Menu, Mic, Sparkles, BookOpen } from 'lucide-react';
+import { Menu, Sparkles, BookOpen } from 'lucide-react';
 
 interface LeftSidebarProps {
   // Voice Input props
@@ -35,37 +34,28 @@ export function LeftSidebar({
   hasWorkflow
 }: LeftSidebarProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'voice' | 'templates' | 'nodes'>('voice');
+  const [activeTab, setActiveTab] = useState<'templates' | 'nodes'>('templates');
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
         <Button 
           variant="default"
-          size="default"
-          className="fixed top-6 left-6 gap-2 bg-purple-600 hover:bg-purple-700 shadow-2xl z-50 font-semibold border-2 border-purple-500 pointer-events-auto"
+          size="icon"
+          aria-label="Tools Menu"
+          className="fixed top-6 left-6 bg-blue-600 hover:bg-blue-700 shadow-2xl z-50 font-semibold border-2 border-blue-500 pointer-events-auto"
         >
           <Menu className="w-5 h-5" />
-          Tools Menu
         </Button>
       </SheetTrigger>
       
-      <SheetContent side="left" className="w-96 bg-gray-900/95 border-gray-700 backdrop-blur-lg">
+      <SheetContent side="left" className="w-96 bg-gray-900/95 border-gray-700 backdrop-blur-lg px-4">
         <SheetHeader className="pb-4">
           <SheetTitle className="text-left">Workflow Tools</SheetTitle>
         </SheetHeader>
         
         {/* Tab Navigation */}
         <div className="flex gap-1 mb-6 bg-gray-800/50 p-1 rounded-lg">
-          <Button
-            variant={activeTab === 'voice' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setActiveTab('voice')}
-            className="flex-1 gap-1"
-          >
-            <Mic className="w-3 h-3" />
-            Voice
-          </Button>
           <Button
             variant={activeTab === 'templates' ? 'default' : 'ghost'}
             size="sm"
@@ -88,31 +78,6 @@ export function LeftSidebar({
 
         {/* Tab Content */}
         <div className="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
-          {activeTab === 'voice' && (
-            <div className="space-y-4">
-              {/* Voice Input */}
-              {hasWorkflow && (
-                <Card className="p-4 bg-gray-800/50 border-gray-700">
-                  <h3 className="text-sm font-semibold mb-3">Voice Commands</h3>
-                  <VoiceInput
-                    onTranscribed={onTranscribed}
-                    isEditMode={true}
-                  />
-                </Card>
-              )}
-
-              {/* Voice Edit Tips */}
-              <Card className="p-3 bg-blue-900/20 border-blue-700/50">
-                <h4 className="text-xs font-semibold text-blue-300 mb-2">💡 Voice Edit Tips</h4>
-                <div className="text-[10px] text-blue-200/80 space-y-1">
-                  <p>• "Remove the email step"</p>
-                  <p>• "Add summarization after fetching"</p>
-                  <p>• "Replace analyze with transform"</p>
-                </div>
-              </Card>
-            </div>
-          )}
-
           {activeTab === 'templates' && (
             <div className="space-y-3">
               <h3 className="text-sm font-semibold mb-3">Advanced Templates</h3>
