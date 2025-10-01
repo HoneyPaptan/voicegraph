@@ -48,65 +48,108 @@ export async function POST(request: NextRequest) {
 
     const cerebras = createCerebras({ apiKey });
 
-    const prompt = `You are a workflow editor AI. A user wants to modify their existing workflow using voice commands.
+    // Analyze the current workflow structure for better context
+    const analyzeWorkflow = (workflow: any) => {
+      const nodes = workflow.nodes || [];
+      const edges = workflow.edges || [];
+      
+      // Build flow structure
+      const flowStructure = nodes.map((node: any, index: number) => {
+        const incomingEdges = edges.filter((e: any) => e.target === node.id);
+        const outgoingEdges = edges.filter((e: any) => e.source === node.id);
+        const position = `${index + 1}${index === 0 ? ' (first)' : index === nodes.length - 1 ? ' (last)' : ''}`;
+        
+        return {
+          id: node.id,
+          position,
+          type: node.type,
+          action: node.action,
+          label: node.label,
+          role: index === 0 ? 'starting point' : index === nodes.length - 1 ? 'final step' : 'processing step',
+          incomingFrom: incomingEdges.map((e: any) => {
+            const sourceNode = nodes.find((n: any) => n.id === e.source);
+            return sourceNode ? sourceNode.label : e.source;
+          }),
+          outgoingTo: outgoingEdges.map((e: any) => {
+            const targetNode = nodes.find((n: any) => n.id === e.target);
+            return targetNode ? targetNode.label : e.target;
+          })
+        };
+      });
+      
+      return flowStructure;
+    };
 
-Current workflow:
+    const workflowAnalysis = analyzeWorkflow(currentWorkflow);
+    const flowDescription = workflowAnalysis.map(node => 
+      `${node.position}. ${node.label} (${node.type}-${node.action}) - ${node.role}${
+        node.incomingFrom.length > 0 ? ` ← receives from: [${node.incomingFrom.join(', ')}]` : ''
+      }${
+        node.outgoingTo.length > 0 ? ` → sends to: [${node.outgoingTo.join(', ')}]` : ''
+      }`
+    ).join('\n');
+
+    const prompt = `You are an intelligent workflow editor AI with full context awareness. A user wants to modify their existing workflow using natural voice commands.
+
+CURRENT WORKFLOW ANALYSIS:
+${flowDescription}
+
+CURRENT WORKFLOW DATA:
 ${JSON.stringify(currentWorkflow, null, 2)}
 
-User's edit command: "${text}"
+USER'S EDIT COMMAND: "${text}"
 
-Your task: Understand the user's intent and return the UPDATED workflow JSON.
+CONTEXT UNDERSTANDING RULES:
+1. **Reference Resolution**: 
+   - "this node/step" = most recently mentioned or contextually relevant node
+   - "the [type] node" = find the node by type (e.g., "the email node", "the summarize step")
+   - "first/last node" = use position in flow
+   - "remove the middle step" = identify the middle processing step
 
-Possible edit types:
-1. ADD NODE - User wants to add a new step (e.g., "add a slack notification", "add another llm step")
-2. REMOVE NODE - User wants to delete a step (e.g., "remove the email step", "delete the summarize node")
-3. MODIFY NODE - User wants to change a step (e.g., "change the email to slack", "update the summary prompt")
-4. REORDER - User wants to change the order (e.g., "move email to the end", "swap step 1 and 2")
+2. **Replacement Logic**:
+   - When replacing a node, maintain ALL its current connections
+   - Keep the same position in the workflow flow
+   - Preserve the logical flow structure
 
-Node Types & Actions:
-- type: "notion" → actions: fetch_page, fetch_database
-- type: "llm" → actions: summarize, analyze, extract_insights, OR any custom action in snake_case
-  (e.g., extract_next_meeting_date, format_as_bullet_points, translate_to_spanish)
-- type: "email" → action: send
-- type: "slack" → action: send_message (if user requests)
-- type: "webhook" → action: post (if user requests)
+3. **Addition Logic**:
+   - "add [X] after [Y]" = insert between Y and Y's current target
+   - "add [X] before [Y]" = insert between Y's source and Y
+   - "add [X] in parallel to [Y]" = create from same source as Y
+   - "add [X]" (no position specified) = add at the most logical position
 
-IMPORTANT Rules:
-- Maintain the same JSON structure with workflowId, nodes, and edges
-- Each node must have: id (step-N), type, action, label, params
-- For LLM nodes with custom tasks, use a descriptive snake_case action name
-- Generate new node IDs starting from the next available number
-- If adding a node, insert it logically based on the command
-- If removing a node, update all edges accordingly and renumber if needed
-- Keep all existing nodes unless specifically asked to remove them
-- Make labels human-readable and descriptive
+4. **Contextual Intelligence**:
+   - If user says "make it faster", consider what would optimize the workflow
+   - If user mentions specific functionality, map to appropriate node types
+   - If user wants to "also do X", create parallel processing
 
-CRITICAL - Edge Structure:
-When user says "at the same time", "parallel", "simultaneously", "both", "together":
-- Create edges from the SAME source to MULTIPLE targets
-- Example: "add summarize and extract date at the same time"
-  Current: step-0 (Fetch)
-  New nodes: step-1 (Summarize), step-2 (Extract)
-  Edges: [
-    {"id": "edge-0", "source": "step-0", "target": "step-1"},
-    {"id": "edge-1", "source": "step-0", "target": "step-2"}  // Both from step-0!
-  ]
-  
-WRONG (sequential): step-0 → step-1 → step-2  ❌
-CORRECT (parallel): step-0 → step-1 AND step-0 → step-2  ✅
+AVAILABLE NODE TYPES & ACTIONS:
+- notion: fetch_page, fetch_database, query_database
+- notion_create: create_page
+- llm: summarize, analyze, extract_insights, transform, generate, OR any custom action
+- email: send  
+- tavily: search, search_news
+- github: get_commits, get_repo_info, get_pull_requests
 
-If NO parallel keywords: Connect nodes sequentially
+SMART EDITING BEHAVIORS:
+1. **Node Replacement**: When replacing, copy the old node's position and connections exactly
+2. **Flow Preservation**: Maintain the logical workflow structure unless explicitly changed
+3. **Intelligent Insertion**: Place new nodes where they make the most sense in the flow
+4. **Edge Management**: Automatically update all affected edges when nodes change
+5. **ID Management**: Reuse IDs when replacing, generate new sequential IDs when adding
 
-Custom LLM Actions:
-The executor can handle ANY action name for LLM nodes. Examples:
-- extract_next_meeting_date
-- find_action_items
-- count_words
-- translate_to_french
-- format_as_json
-Just use snake_case and be descriptive!
+CRITICAL RULES:
+- Preserve workflow.workflowId
+- When removing nodes, update ALL affected edges
+- When replacing nodes, maintain exact same connections but update the node content
+- When adding nodes, insert at the most logical position in the flow
+- Generate human-readable labels that describe the actual function
+- For custom LLM actions, use descriptive snake_case names
 
-Return ONLY the updated workflow JSON, no explanations.`;
+PARALLEL PROCESSING KEYWORDS:
+"at the same time", "parallel", "simultaneously", "also", "both", "together", "in addition to"
+→ Create multiple edges FROM the same source TO different targets
+
+Return ONLY the updated workflow JSON with no explanations.`;
 
     const { text: response } = await generateText({
       model: cerebras('llama-4-scout-17b-16e-instruct'),
@@ -121,10 +164,46 @@ Return ONLY the updated workflow JSON, no explanations.`;
 
     let updatedWorkflow = JSON.parse(jsonMatch[0]);
     
-    // Validate workflow structure
-    if (!updatedWorkflow.nodes || !Array.isArray(updatedWorkflow.nodes)) {
-      throw new Error('Invalid workflow structure: missing nodes array');
-    }
+    // Enhanced validation for edited workflows
+    const validateEditedWorkflow = (workflow: any, originalWorkflow: any) => {
+      // Basic structure validation
+      if (!workflow.nodes || !Array.isArray(workflow.nodes)) {
+        throw new Error('Invalid workflow structure: missing nodes array');
+      }
+
+      if (!workflow.edges || !Array.isArray(workflow.edges)) {
+        workflow.edges = [];
+      }
+
+      // Validate node structure
+      workflow.nodes.forEach((node: any, index: number) => {
+        if (!node.id || !node.type || !node.action || !node.label) {
+          throw new Error(`Invalid node structure at position ${index + 1}: missing required fields`);
+        }
+      });
+
+      // Validate edges reference existing nodes
+      const nodeIds = workflow.nodes.map((n: any) => n.id);
+      workflow.edges.forEach((edge: any, index: number) => {
+        if (!nodeIds.includes(edge.source) || !nodeIds.includes(edge.target)) {
+          console.warn(`⚠️ Edge ${index + 1} references non-existent nodes: ${edge.source} → ${edge.target}`);
+        }
+      });
+
+      // Preserve workflow ID
+      if (originalWorkflow.workflowId) {
+        workflow.workflowId = originalWorkflow.workflowId;
+      }
+
+      // Ensure at least one node exists
+      if (workflow.nodes.length === 0) {
+        throw new Error('Workflow cannot be empty - at least one node is required');
+      }
+
+      return workflow;
+    };
+
+    updatedWorkflow = validateEditedWorkflow(updatedWorkflow, currentWorkflow);
 
     // Debug: Log what Cerebras generated
     console.log('🧠 Cerebras edited workflow:');
