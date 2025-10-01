@@ -1,0 +1,140 @@
+import { inngest } from './client';
+import { executeNode } from '../executor';
+import { analyzeParallelWorkflow } from '../parallel-executor';
+import { ExecutionContext, WorkflowNode, WorkflowEdge } from '../types';
+import { workflowHistory } from '../workflow-history';
+
+/**
+ * Inngest function to execute workflows in the background
+ * Uses steps for reliability and automatic retries
+ */
+export const executeWorkflowFunction = inngest.createFunction(
+  { 
+    id: 'execute-workflow',
+    name: 'Execute VoiceGraph Workflow'
+  },
+  { event: 'workflow/execute.requested' },
+  async ({ event, step }) => {
+    const { 
+      workflowId, 
+      workflow, 
+      config 
+    } = event.data;
+
+    console.log(`🚀 Starting Inngest workflow execution: ${workflowId}`);
+
+    // Update workflow status to running
+    workflowHistory.updateStatus(workflowId, 'running');
+
+    try {
+      // Step 1: Initialize execution context
+      const context: ExecutionContext = await step.run('initialize-context', async () => {
+        return {
+          notionPageId: config.notionPageId,
+          notionDatabaseId: config.notionDatabaseId,
+          recipientEmail: config.recipientEmail,
+          outputs: {},
+          lastOutput: undefined,
+          sourceContent: undefined,
+        };
+      });
+
+      // Step 2: Analyze parallel structure
+      const layers = await step.run('analyze-workflow', async () => {
+        return analyzeParallelWorkflow(workflow.nodes, workflow.edges);
+      });
+
+      console.log(`📊 Workflow has ${layers.length} execution layer(s)`);
+
+      // Step 3: Execute nodes layer by layer
+      for (let layerIndex = 0; layerIndex < layers.length; layerIndex++) {
+        const layer = layers[layerIndex];
+        
+        const layerResults = await step.run(`execute-layer-${layerIndex}`, async (): Promise<Array<{ node: WorkflowNode; result: any; success: boolean }>> => {
+          console.log(`⚡ Layer ${layerIndex}: Executing ${layer.nodes.length} node(s) in parallel`);
+
+          // Execute all nodes in this layer in parallel
+          const results = await Promise.all(
+            layer.nodes.map(async (node) => {
+              workflowHistory.addLog(workflowId, {
+                type: 'progress',
+                nodeId: node.id,
+                message: `Executing ${node.label || node.type}...`,
+                timestamp: Date.now(),
+              });
+
+              const result = await executeNode(node, context);
+
+              if (result.success && 'output' in result) {
+                workflowHistory.addLog(workflowId, {
+                  type: 'success',
+                  nodeId: node.id,
+                  message: `✓ ${node.label || node.type} completed`,
+                  timestamp: Date.now(),
+                });
+                
+                return { node, result, success: true };
+              } else {
+                const errorMsg = result.error || 'Unknown error';
+                workflowHistory.addLog(workflowId, {
+                  type: 'error',
+                  nodeId: node.id,
+                  message: `✗ ${errorMsg}`,
+                  timestamp: Date.now(),
+                });
+                throw new Error(errorMsg);
+              }
+            })
+          );
+
+          return results;
+        });
+        
+        // Update context with results from this layer
+        for (const item of layerResults as any[]) {
+          const { node, result } = item;
+          if (result.success && 'output' in result) {
+            context.outputs[node.id] = result.output;
+            context.lastOutput = result.output;
+
+            // Store source content from Notion nodes
+            if (node.type === 'notion' && result.output) {
+              context.sourceContent = result.output;
+            }
+          }
+        }
+      }
+
+      // Step 4: Mark workflow as completed
+      await step.run('finalize-workflow', async () => {
+        workflowHistory.updateStatus(workflowId, 'completed');
+        workflowHistory.addLog(workflowId, {
+          type: 'success',
+          nodeId: 'system',
+          message: '✅ Workflow completed successfully',
+          timestamp: Date.now(),
+        });
+        console.log(`✅ Workflow ${workflowId} completed successfully`);
+        return { success: true };
+      });
+
+      return { 
+        success: true, 
+        workflowId,
+        message: 'Workflow executed successfully' 
+      };
+
+    } catch (error: any) {
+      console.error(`❌ Workflow ${workflowId} failed:`, error);
+      
+      // Mark workflow as failed
+      await step.run('mark-failed', async () => {
+        workflowHistory.updateStatus(workflowId, 'failed', error.message);
+        return { success: false };
+      });
+
+      throw error;
+    }
+  }
+);
+
