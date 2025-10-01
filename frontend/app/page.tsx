@@ -2,15 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { VoiceInput } from '@/components/VoiceInput';
+import { FloatingMicButton } from '@/components/FloatingMicButton';
 import { WorkflowCanvas } from '@/components/WorkflowCanvas';
 import { ExecutionLogs } from '@/components/ExecutionLogs';
 import { ConfigModal } from '@/components/ConfigModal';
 import { WorkflowHistory } from '@/components/WorkflowHistory';
+import { NodesLibrary } from '@/components/NodesLibrary';
+import { NodeConfigPanel } from '@/components/NodeConfigPanel';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Workflow, ExecutionLog } from '@/lib/types';
+import { Workflow, ExecutionLog, WorkflowNode } from '@/lib/types';
 import { WorkflowRun } from '@/lib/workflow-history';
-import { Sparkles, Play, RefreshCw, Loader2, Mic, Zap } from 'lucide-react';
+import { Sparkles, Play, RefreshCw, Loader2, Mic, Zap, Link2 } from 'lucide-react';
 
 export default function Home() {
   // State management
@@ -20,7 +23,7 @@ export default function Home() {
   const [parseError, setParseError] = useState<string | null>(null);
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [executionLogs, setExecutionLogs] = useState<ExecutionLog[]>([]);
-  const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
+  const [activeNodeIds, setActiveNodeIds] = useState<string[]>([]);
   const [errorNodeId, setErrorNodeId] = useState<string | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionStartTime, setExecutionStartTime] = useState<number | null>(null);
@@ -28,8 +31,8 @@ export default function Home() {
   const [isEditingWorkflow, setIsEditingWorkflow] = useState(false);
   const [useBackgroundExecution, setUseBackgroundExecution] = useState(false);
   const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(null);
-  const [isNodeManipulationMode, setIsNodeManipulationMode] = useState(false);
-  const [tempNodePositions, setTempNodePositions] = useState<Record<string, { x: number; y: number }>>({});
+  const [manualMode, setManualMode] = useState(false);
+  const [selectedNodeForConfig, setSelectedNodeForConfig] = useState<WorkflowNode | null>(null);
 
   // Poll current workflow status if running in background
   useEffect(() => {
@@ -58,16 +61,25 @@ export default function Home() {
           if (data.run.status === 'completed') {
             hasCompleted = true; // Mark as completed
             setIsExecuting(false);
-            setActiveNodeId(null);
+            setActiveNodeIds([]);
             setErrorNodeId(null);
             setExecutionStartTime(null);
             console.log('✅ Background workflow completed - stopping poll');
             // Stop polling on completion
             setCurrentWorkflowId(null);
+            
+            // Add a final completion log to ensure clean state
+            const completionLog: ExecutionLog = {
+              nodeId: 'system',
+              type: 'success', 
+              message: '✅ Background workflow completed successfully',
+              timestamp: Date.now(),
+            };
+            setExecutionLogs((prev) => [...prev, completionLog]);
           } else if (data.run.status === 'failed') {
             hasCompleted = true; // Mark as failed
             setIsExecuting(false);
-            setActiveNodeId(null);
+            setActiveNodeIds([]);
             setExecutionStartTime(null);
             const errorLog = data.run.logs.find((log: any) => log.type === 'error');
             if (errorLog) {
@@ -79,23 +91,21 @@ export default function Home() {
           } else if (data.run.status === 'running') {
             setIsExecuting(true);
             
-            // Find the last progress log to show which node is currently executing
+            // Find all nodes currently executing (have progress but no success yet)
             const progressLogs = data.run.logs.filter((log: any) => log.type === 'progress');
             const successLogs = data.run.logs.filter((log: any) => log.type === 'success');
             
-            if (progressLogs.length > 0) {
-              const lastProgress = progressLogs[progressLogs.length - 1];
-              // Only show as active if this node doesn't have a success log yet
-              const hasSuccessLog = successLogs.some((log: any) => log.nodeId === lastProgress.nodeId);
-              
-              if (!hasSuccessLog) {
-                setActiveNodeId(lastProgress.nodeId);
-              } else {
-                setActiveNodeId(null);
-              }
-            } else {
-              setActiveNodeId(null);
-            }
+            // Get unique node IDs that have progress but no success yet
+            const activeNodes = progressLogs
+              .map((log: any) => log.nodeId)
+              .filter((nodeId: string) => 
+                !successLogs.some((successLog: any) => successLog.nodeId === nodeId)
+              )
+              .filter((value: string, index: number, self: string[]) => 
+                self.indexOf(value) === index // Remove duplicates
+              );
+            
+            setActiveNodeIds(activeNodes);
           }
         }
       } catch (error) {
@@ -216,7 +226,7 @@ export default function Home() {
 
     setIsExecuting(true);
     setExecutionLogs([]);
-    setActiveNodeId(null);
+    setActiveNodeIds([]);
     setErrorNodeId(null);
 
     try {
@@ -285,7 +295,7 @@ export default function Home() {
       setIsExecuting(true);
       const lastLog = run.logs[run.logs.length - 1];
       if (lastLog && lastLog.type === 'progress') {
-        setActiveNodeId(lastLog.nodeId);
+        setActiveNodeIds([lastLog.nodeId]);
       }
     } else if (run.status === 'failed') {
       setIsExecuting(false);
@@ -293,10 +303,10 @@ export default function Home() {
       if (errorLog) {
         setErrorNodeId(errorLog.nodeId);
       }
-      setActiveNodeId(null);
+      setActiveNodeIds([]);
     } else if (run.status === 'completed') {
       setIsExecuting(false);
-      setActiveNodeId(null);
+      setActiveNodeIds([]);
       setErrorNodeId(null);
     }
     
@@ -317,7 +327,7 @@ export default function Home() {
     // Reset all states
     setIsExecuting(true);
     setExecutionLogs([]);
-    setActiveNodeId(null);
+    setActiveNodeIds([]);
     setErrorNodeId(null);
     setExecutionStartTime(Date.now());
 
@@ -351,7 +361,7 @@ export default function Home() {
           // Stream ended - always stop loading
           console.log('SSE stream ended, stopping execution');
           setIsExecuting(false);
-          setActiveNodeId(null);
+          setActiveNodeIds([]);
           break;
         }
 
@@ -375,21 +385,38 @@ export default function Home() {
 
               // Handle different event types
               if (data.type === 'progress') {
-                setActiveNodeId(data.nodeId);
+                // Add node to active list if not already there
+                setActiveNodeIds(prev => {
+                  if (!prev.includes(data.nodeId)) {
+                    return [...prev, data.nodeId];
+                  }
+                  return prev;
+                });
                 setErrorNodeId(null);
               } else if (data.type === 'success') {
-                setActiveNodeId(null);
+                // Remove completed node from active list
+                setActiveNodeIds(prev => prev.filter(id => id !== data.nodeId));
               } else if (data.type === 'error') {
                 // Error occurred - stop everything immediately
                 console.log('Error detected, stopping execution');
                 setErrorNodeId(data.nodeId);
-                setActiveNodeId(null);
+                setActiveNodeIds([]);
                 setIsExecuting(false);
               } else if (data.type === 'complete') {
                 // Workflow completed successfully
                 console.log('Workflow completed successfully');
-                setActiveNodeId(null);
+                setActiveNodeIds([]);
                 setIsExecuting(false);
+                setErrorNodeId(null);
+                
+                // Add a final completion log to ensure clean state
+                const completionLog: ExecutionLog = {
+                  nodeId: 'system',
+                  type: 'success',
+                  message: '✅ All workflows completed successfully',
+                  timestamp: Date.now(),
+                };
+                setExecutionLogs((prev) => [...prev, completionLog]);
               }
             } catch (parseError) {
               console.error('Failed to parse SSE data:', parseError);
@@ -413,30 +440,22 @@ export default function Home() {
       // Always stop loading, no matter what
       console.log('Finally block - ensuring execution is stopped');
       setIsExecuting(false);
-      setActiveNodeId(null);
+      setActiveNodeIds([]);
     }
   };
 
-  // Handle node position updates during drag
-  const handleNodePositionUpdate = (nodeId: string, position: { x: number; y: number }) => {
-    console.log('📍 Updating position for node:', nodeId, position);
-    setTempNodePositions(prev => ({
-      ...prev,
-      [nodeId]: position,
-    }));
-  };
-
-  // Save all node positions when exiting edit mode
-  const saveNodePositions = () => {
-    if (!workflow || Object.keys(tempNodePositions).length === 0) return;
+  // Handle node position save when drag is complete (optimized for smooth dragging)
+  const handleNodeDragStop = (nodeId: string, position: { x: number; y: number }) => {
+    console.log('💾 Saving final position for node:', nodeId, position);
     
-    console.log('💾 Saving all node positions:', tempNodePositions);
+    if (!workflow) return;
     
+    // Update the workflow with final position after drag completes
     const updatedNodes = workflow.nodes.map(node => {
-      if (tempNodePositions[node.id]) {
+      if (node.id === nodeId) {
         return {
           ...node,
-          position: tempNodePositions[node.id],
+          position: position,
         };
       }
       return node;
@@ -446,19 +465,6 @@ export default function Home() {
       ...workflow,
       nodes: updatedNodes,
     });
-    
-    // Clear temp positions
-    setTempNodePositions({});
-  };
-
-  // Toggle node manipulation mode
-  const toggleNodeManipulationMode = () => {
-    if (isNodeManipulationMode) {
-      // Exiting edit mode - save positions
-      saveNodePositions();
-    }
-    setIsNodeManipulationMode(!isNodeManipulationMode);
-    if (isEditMode) setIsEditMode(false);
   };
 
   // Handle node deletion
@@ -482,18 +488,131 @@ export default function Home() {
     });
   };
 
+  // Handle adding a new node manually
+  const handleAddNode = (type: string, action: string) => {
+    if (!workflow) {
+      // Create new workflow if none exists
+      const newNode: WorkflowNode = {
+        id: `node-${Date.now()}`,
+        type: type as any,
+        action,
+        label: `${type.charAt(0).toUpperCase() + type.slice(1)} - ${action}`,
+        params: {},
+        position: { x: 400, y: 200 },
+      };
+      
+      setWorkflow({
+        workflowId: `workflow-${Date.now()}`,
+        nodes: [newNode],
+        edges: [],
+      });
+      
+      console.log('✅ Created new workflow with node:', newNode);
+      return;
+    }
+    
+    // Add to existing workflow
+    const newNode: WorkflowNode = {
+      id: `node-${Date.now()}`,
+      type: type as any,
+      action,
+      label: `${type.charAt(0).toUpperCase() + type.slice(1)} - ${action}`,
+      params: {},
+      position: { x: 400, y: workflow.nodes.length * 150 + 100 },
+    };
+    
+    setWorkflow({
+      ...workflow,
+      nodes: [...workflow.nodes, newNode],
+    });
+    
+    console.log('✅ Added new node:', newNode);
+  };
+
+  // Handle edge connection
+  const handleEdgeConnect = (source: string, target: string) => {
+    if (!workflow) return;
+    
+    console.log('🔗 Connecting edge:', source, '→', target);
+    
+    const newEdge = {
+      id: `edge-${source}-${target}`,
+      source,
+      target,
+    };
+    
+    setWorkflow({
+      ...workflow,
+      edges: [...workflow.edges, newEdge],
+    });
+  };
+
+  // Handle edge deletion
+  const handleEdgeDelete = (edgeId: string) => {
+    if (!workflow) return;
+    
+    console.log('🗑️ Deleting edge:', edgeId);
+    
+    setWorkflow({
+      ...workflow,
+      edges: workflow.edges.filter(e => e.id !== edgeId),
+    });
+  };
+
+  // Toggle manual mode
+  const toggleManualMode = () => {
+    setManualMode(!manualMode);
+    if (!manualMode) {
+      console.log('🔧 Manual mode enabled - You can now connect nodes manually');
+    }
+  };
+
+  // Handle node click to open config
+  const handleNodeClick = (nodeId: string) => {
+    if (!workflow) return;
+    
+    const node = workflow.nodes.find(n => n.id === nodeId);
+    if (node) {
+      console.log('⚙️ Opening config for node:', node);
+      setSelectedNodeForConfig(node);
+    }
+  };
+
+  // Save node configuration
+  const handleSaveNodeConfig = (nodeId: string, params: Record<string, any>) => {
+    if (!workflow) return;
+    
+    console.log('💾 Saving config for node:', nodeId, params);
+    
+    const updatedNodes = workflow.nodes.map(node => {
+      if (node.id === nodeId) {
+        return {
+          ...node,
+          params,
+        };
+      }
+      return node;
+    });
+    
+    setWorkflow({
+      ...workflow,
+      nodes: updatedNodes,
+    });
+    
+    setSelectedNodeForConfig(null);
+  };
+
   // Reset workflow
   const handleReset = () => {
     setTranscribedText('');
     setWorkflow(null);
     setParseError(null);
     setExecutionLogs([]);
-    setActiveNodeId(null);
+    setActiveNodeIds([]);
     setErrorNodeId(null);
     setIsExecuting(false);
     setExecutionStartTime(null);
     setIsEditMode(false);
-    setIsNodeManipulationMode(false);
   };
 
   // Toggle edit mode
@@ -515,233 +634,360 @@ export default function Home() {
     : null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
-      {/* Header */}
-      <header className="border-b border-gray-800 bg-gray-900/50 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+    <div className="relative min-h-screen w-full overflow-hidden bg-gray-950 text-white">
+      {/* Full-Screen Workflow Canvas Background */}
+      <div className="absolute inset-0 w-full h-full">
+        <WorkflowCanvas
+          nodes={workflow?.nodes || []}
+          edges={workflow?.edges || []}
+          activeNodeIds={activeNodeIds}
+          errorNodeId={errorNodeId}
+          onNodeDragStop={handleNodeDragStop}
+          onNodeDelete={handleNodeDelete}
+          onNodeClick={handleNodeClick}
+          onEdgeConnect={handleEdgeConnect}
+          onEdgeDelete={handleEdgeDelete}
+          isInteractive={!isExecuting && !isEditMode}
+          allowConnections={manualMode}
+        />
+      </div>
+
+      {/* Floating UI Elements */}
+      <div className="relative z-10 pointer-events-none">
+        {/* Top Header - Floating */}
+        <div className="absolute top-6 left-6 pointer-events-auto">
+          <Card className="px-4 py-3 bg-gray-900/90 border-gray-700 backdrop-blur-md shadow-2xl">
             <div className="flex items-center gap-3">
-              <Sparkles className="w-8 h-8 text-purple-500" />
+              <Sparkles className="w-6 h-6 text-purple-500" />
               <div>
-                <h1 className="text-2xl font-bold">AI Workflow Orchestrator</h1>
-                <p className="text-sm text-gray-400">Voice-powered automation with Cerebras AI</p>
+                <h1 className="text-lg font-bold">AI Workflow Orchestrator</h1>
+                <p className="text-xs text-gray-400">Voice-powered automation</p>
               </div>
             </div>
-            {workflow && (
-              <Button variant="outline" onClick={handleReset} className="gap-2">
-                <RefreshCw className="w-4 h-4" />
-                Reset
-              </Button>
-            )}
-          </div>
+          </Card>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Panel - Input & Controls */}
-          <div className="space-y-6">
-            {/* Voice Input */}
-            <Card className="p-6 bg-gray-900/50 border-gray-800">
-              <h2 className="text-lg font-semibold mb-4">
-                {isEditMode ? 'Edit Workflow' : 'Voice Input'}
-              </h2>
-              <VoiceInput onTranscribed={handleTranscribed} isEditMode={isEditMode} />
+        {/* Center Floating Mic Button - Only show when NO workflow */}
+        {!workflow && (
+          <div className="fixed inset-0 flex items-center justify-center pointer-events-auto z-30">
+            <div className="flex flex-col items-center gap-8 max-w-4xl px-6">
+              <FloatingMicButton onTranscribed={handleTranscribed} />
               
               {(isParsingWorkflow || isEditingWorkflow) && (
-                <div className="mt-4 flex items-center justify-center gap-2 text-blue-400">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  {isEditingWorkflow ? 'Updating workflow...' : 'Parsing workflow with Cerebras AI...'}
+                <div className="flex items-center gap-3 text-blue-400 bg-gray-900/90 backdrop-blur-md px-6 py-3 rounded-xl border border-blue-600/50 shadow-2xl">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span className="font-medium">Parsing with Cerebras AI...</span>
+                </div>
+              )}
+
+              {transcribedText && !isParsingWorkflow && (
+                <Card className="p-5 bg-gray-900/90 border-gray-700 backdrop-blur-md shadow-2xl w-full">
+                  <h3 className="text-sm font-semibold mb-2 text-gray-300">Transcribed</h3>
+                  <p className="text-gray-400 text-sm leading-relaxed">{transcribedText}</p>
+                </Card>
+              )}
+
+              {parseError && (
+                <Card className="p-5 bg-red-900/90 border-red-700 backdrop-blur-md shadow-2xl w-full">
+                  <h3 className="text-sm font-semibold mb-2 text-red-400">Error</h3>
+                  <p className="text-red-300 text-sm mb-3">{parseError}</p>
+                  <Button
+                    variant="outline"
+                    size="default"
+                    className="w-full"
+                    onClick={() => parseWorkflow(transcribedText)}
+                  >
+                    Retry
+                  </Button>
+                </Card>
+              )}
+
+              {/* Quick Templates & Manual Mode - Show if no transcription or error */}
+              {!transcribedText && !parseError && !isParsingWorkflow && (
+                <div className="w-full space-y-6">
+                  {/* Templates Section */}
+                  <div>
+                    <p className="text-center text-gray-400 text-sm mb-4">or choose a template</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl">
+                      <Button
+                        variant="outline"
+                        className="h-auto py-4 px-5 bg-gray-900/50 hover:bg-gray-800/70 border-gray-700 hover:border-purple-600 transition-all"
+                        onClick={() => loadExample('Get my Notion meeting notes and email me a summary')}
+                      >
+                        <div className="text-center">
+                          <div className="font-semibold text-sm mb-1">Meeting Notes Summary</div>
+                          <div className="text-xs text-gray-400">Notion → Summarize → Email</div>
+                        </div>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="h-auto py-4 px-5 bg-gray-900/50 hover:bg-gray-800/70 border-gray-700 hover:border-purple-600 transition-all"
+                        onClick={() => loadExample('Fetch my Notion project tasks and send me a status update')}
+                      >
+                        <div className="text-center">
+                          <div className="font-semibold text-sm mb-1">Project Status Update</div>
+                          <div className="text-xs text-gray-400">Notion → Analyze → Email</div>
+                        </div>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="h-auto py-4 px-5 bg-gray-900/50 hover:bg-gray-800/70 border-gray-700 hover:border-purple-600 transition-all"
+                        onClick={() => loadExample('Get my weekly Notion journal and email me key insights')}
+                      >
+                        <div className="text-center">
+                          <div className="font-semibold text-sm mb-1">Weekly Insights</div>
+                          <div className="text-xs text-gray-400">Notion → Extract Insights → Email</div>
+                        </div>
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Manual Mode Option */}
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="h-px bg-gray-700 w-full max-w-xs"></div>
+                    <Button
+                      onClick={() => {
+                        setManualMode(true);
+                        // Create empty workflow to enable manual mode
+                        setWorkflow({
+                          workflowId: `workflow-${Date.now()}`,
+                          nodes: [],
+                          edges: [],
+                        });
+                      }}
+                      variant="outline"
+                      className="gap-2 px-6 py-3 bg-blue-600/20 hover:bg-blue-600/30 border-blue-600 hover:border-blue-500 text-blue-300 hover:text-blue-200 transition-all"
+                    >
+                      <Link2 className="w-4 h-4" />
+                      Start Manual Workflow
+                    </Button>
+                    <p className="text-xs text-gray-500 text-center max-w-xs">
+                      Build your workflow by manually adding and connecting nodes
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Left Side - Voice Input & Templates - Only show when workflow EXISTS */}
+        {workflow && (
+          <div className="absolute top-32 left-6 w-80 space-y-4 pointer-events-auto">
+          {/* Voice Input Card */}
+          <Card className="p-4 bg-gray-900/90 border-gray-700 backdrop-blur-md shadow-2xl">
+            <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
+              <Mic className="w-4 h-4" />
+              {isEditMode ? 'Edit Workflow' : 'Voice Input'}
+            </h2>
+            <VoiceInput onTranscribed={handleTranscribed} isEditMode={isEditMode} />
+            
+            {(isParsingWorkflow || isEditingWorkflow) && (
+              <div className="mt-3 flex items-center justify-center gap-2 text-blue-400 text-xs">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                {isEditingWorkflow ? 'Updating...' : 'Parsing with Cerebras AI...'}
+              </div>
+            )}
+          </Card>
+
+          {/* Quick Examples Card */}
+          <Card className="p-4 bg-gray-900/90 border-gray-700 backdrop-blur-md shadow-2xl">
+            <h2 className="text-sm font-semibold mb-3">Quick Templates</h2>
+            <div className="space-y-2">
+              <Button
+                variant="outline"
+                className="w-full justify-start text-left h-auto py-2 px-3 bg-gray-800/50 hover:bg-gray-700/50 border-gray-600"
+                onClick={() => loadExample('Get my Notion meeting notes and email me a summary')}
+              >
+                <div>
+                  <div className="font-medium text-xs">Meeting Notes Summary</div>
+                  <div className="text-[10px] text-gray-400">Notion → Summarize → Email</div>
+                </div>
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start text-left h-auto py-2 px-3 bg-gray-800/50 hover:bg-gray-700/50 border-gray-600"
+                onClick={() => loadExample('Fetch my Notion project tasks and send me a status update')}
+              >
+                <div>
+                  <div className="font-medium text-xs">Project Status Update</div>
+                  <div className="text-[10px] text-gray-400">Notion → Analyze → Email</div>
+                </div>
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start text-left h-auto py-2 px-3 bg-gray-800/50 hover:bg-gray-700/50 border-gray-600"
+                onClick={() => loadExample('Get my weekly Notion journal and email me key insights')}
+              >
+                <div>
+                  <div className="font-medium text-xs">Weekly Insights</div>
+                  <div className="text-[10px] text-gray-400">Notion → Extract Insights → Email</div>
+                </div>
+              </Button>
+            </div>
+          </Card>
+
+          {/* Parse Error Card */}
+          {parseError && (
+            <Card className="p-4 bg-red-900/90 border-red-700 backdrop-blur-md shadow-2xl">
+              <h2 className="text-sm font-semibold mb-2 text-red-400">Parse Error</h2>
+              <p className="text-red-300 text-xs mb-3">{parseError}</p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => parseWorkflow(transcribedText)}
+              >
+                Retry
+              </Button>
+            </Card>
+          )}
+          </div>
+        )}
+
+        {/* Right Side - Transcribed Text & Execution Logs */}
+        <div className="absolute top-6 right-6 w-96 space-y-4 pointer-events-auto max-h-[calc(100vh-180px)] overflow-y-auto pb-32">
+          {/* Transcribed Text Card */}
+          {transcribedText && (
+            <Card className="p-4 bg-gray-900/90 border-gray-700 backdrop-blur-md shadow-2xl">
+              <h2 className="text-sm font-semibold mb-2">Transcribed Text</h2>
+              <p className="text-gray-300 text-xs leading-relaxed">{transcribedText}</p>
+            </Card>
+          )}
+
+          {/* Execution Logs */}
+          {executionLogs.length > 0 && (
+            <Card className="p-4 bg-gray-900/90 border-gray-700 backdrop-blur-md shadow-2xl">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-semibold">Execution Logs</h2>
+                {executionTime && !isExecuting && (
+                  <span className="text-xs text-green-400">
+                    {executionTime}s
+                  </span>
+                )}
+              </div>
+              <div className="max-h-96 overflow-y-auto pr-2">
+                <ExecutionLogs logs={executionLogs} />
+              </div>
+            </Card>
+          )}
+        </div>
+
+        {/* Bottom Left - Reset Button */}
+        {workflow && (
+          <div className="fixed bottom-6 left-6 pointer-events-auto z-30">
+            <Button 
+              variant="outline" 
+              onClick={handleReset} 
+              className="gap-2 bg-gray-900/95 backdrop-blur-md border-gray-700 hover:bg-red-600/90 hover:border-red-600 shadow-2xl"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Reset
+            </Button>
+          </div>
+        )}
+
+        {/* Bottom Center - Workflow Controls - Always visible when workflow exists */}
+        {workflow && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 pointer-events-auto z-30 w-auto">
+            <Card className="px-4 py-3 bg-gray-900/95 border-2 border-gray-700 backdrop-blur-lg shadow-2xl rounded-2xl">
+              {/* Main Controls Row */}
+              <div className="flex items-center gap-3">
+                {/* Run Workflow Button - Primary Action */}
+                {!isExecuting ? (
+                  <Button
+                    onClick={handleRunWorkflow}
+                    size="lg"
+                    className="gap-2 bg-green-600 hover:bg-green-700 font-semibold px-6 shadow-lg"
+                    disabled={isEditMode}
+                  >
+                    <Play className="w-5 h-5" />
+                    Run Workflow
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-2 px-5 py-2.5 bg-blue-600/20 rounded-lg border-2 border-blue-600 shadow-lg">
+                    <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
+                    <span className="text-sm text-blue-400 font-semibold">Executing...</span>
+                  </div>
+                )}
+
+                {/* Separator */}
+                <div className="h-10 w-px bg-gray-600"></div>
+                
+                <Button
+                  onClick={toggleEditMode}
+                  variant={isEditMode ? "default" : "outline"}
+                  size="default"
+                  className={`gap-2 ${isEditMode ? 'bg-purple-600 hover:bg-purple-700 border-purple-600' : 'border-gray-600 hover:border-purple-500'}`}
+                  disabled={manualMode}
+                >
+                  <Mic className="w-4 h-4" />
+                  {isEditMode ? '🎤 Voice Edit Active' : 'Voice Edit'}
+                </Button>
+
+                <Button
+                  onClick={toggleManualMode}
+                  variant={manualMode ? "default" : "outline"}
+                  size="default"
+                  className={`gap-2 ${manualMode ? 'bg-blue-600 hover:bg-blue-700 border-blue-600' : 'border-gray-600 hover:border-blue-500'}`}
+                  disabled={isEditMode}
+                >
+                  <Link2 className="w-4 h-4" />
+                  {manualMode ? '🔗 Manual Mode' : 'Manual Mode'}
+                </Button>
+
+                {/* Separator */}
+                <div className="h-10 w-px bg-gray-600"></div>
+
+                {/* Background Execution Toggle */}
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-800/70 rounded-lg border border-gray-600">
+                  <Zap className={`w-4 h-4 ${useBackgroundExecution ? 'text-yellow-400' : 'text-gray-500'}`} />
+                  <span className="text-xs font-medium text-gray-300">Background</span>
+                  <Button
+                    size="sm"
+                    variant={useBackgroundExecution ? "default" : "outline"}
+                    onClick={() => setUseBackgroundExecution(!useBackgroundExecution)}
+                    className={`h-6 text-xs px-3 font-medium ${useBackgroundExecution ? 'bg-yellow-600 hover:bg-yellow-700 border-yellow-600' : 'border-gray-600'}`}
+                  >
+                    {useBackgroundExecution ? 'ON' : 'OFF'}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Compact Mode Hints */}
+              {(isEditMode || manualMode) && (
+                <div className="mt-2 pt-2 border-t border-gray-700/50">
+                  {isEditMode && (
+                    <div className="text-center">
+                      <p className="text-[11px] text-purple-300">
+                        <strong>🎤 Voice Edit Mode:</strong> Record to add, remove, or modify nodes
+                      </p>
+                    </div>
+                  )}
+                  
+                  {manualMode && (
+                    <div className="text-center">
+                      <p className="text-[11px] text-blue-300">
+                        <strong>🔗 Manual Mode:</strong> Click "Nodes Library" to add nodes • Drag from handles to connect
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </Card>
-
-            {/* Example Workflows */}
-            <Card className="p-6 bg-gray-900/50 border-gray-800">
-              <h2 className="text-lg font-semibold mb-4">Quick Examples</h2>
-              <div className="space-y-2">
-                <Button
-                  variant="outline"
-                  className="w-full justify-start text-left h-auto py-3"
-                  onClick={() => loadExample('Get my Notion meeting notes and email me a summary')}
-                >
-                  <div>
-                    <div className="font-semibold text-sm">Meeting Notes Summary</div>
-                    <div className="text-xs text-gray-400">Notion → Summarize → Email</div>
-                  </div>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start text-left h-auto py-3"
-                  onClick={() => loadExample('Fetch my Notion project tasks and send me a status update')}
-                >
-                  <div>
-                    <div className="font-semibold text-sm">Project Status Update</div>
-                    <div className="text-xs text-gray-400">Notion → Analyze → Email</div>
-                  </div>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start text-left h-auto py-3"
-                  onClick={() => loadExample('Get my weekly Notion journal and email me key insights')}
-                >
-                  <div>
-                    <div className="font-semibold text-sm">Weekly Insights</div>
-                    <div className="text-xs text-gray-400">Notion → Extract Insights → Email</div>
-                  </div>
-                </Button>
-              </div>
-            </Card>
-
-            {/* Transcribed Text */}
-            {transcribedText && (
-              <Card className="p-6 bg-gray-900/50 border-gray-800">
-                <h2 className="text-lg font-semibold mb-2">Transcribed Text</h2>
-                <p className="text-gray-300 text-sm">{transcribedText}</p>
-              </Card>
-            )}
-
-            {/* Parse Error */}
-            {parseError && (
-              <Card className="p-6 bg-red-900/20 border-red-800">
-                <h2 className="text-lg font-semibold mb-2 text-red-400">Parse Error</h2>
-                <p className="text-red-300 text-sm">{parseError}</p>
-                <Button
-                  variant="outline"
-                  className="mt-4"
-                  onClick={() => parseWorkflow(transcribedText)}
-                >
-                  Retry
-                </Button>
-              </Card>
-            )}
-
-            {/* Workflow Action Buttons */}
-            {workflow && (
-              <Card className="p-6 bg-gray-900/50 border-gray-800">
-                <div className="space-y-3">
-                  {/* Execution Mode Toggle */}
-                  <div className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg border border-gray-700">
-                    <div className="flex items-center gap-2">
-                      <Zap className={`w-4 h-4 ${useBackgroundExecution ? 'text-yellow-400' : 'text-gray-500'}`} />
-                      <span className="text-sm font-medium">Background Execution</span>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant={useBackgroundExecution ? "default" : "outline"}
-                      onClick={() => setUseBackgroundExecution(!useBackgroundExecution)}
-                      className={useBackgroundExecution ? 'bg-yellow-600 hover:bg-yellow-700' : ''}
-                    >
-                      {useBackgroundExecution ? 'ON' : 'OFF'}
-                    </Button>
-                  </div>
-                  
-                  {useBackgroundExecution && (
-                    <div className="p-2 bg-yellow-500/10 border border-yellow-500/30 rounded text-xs text-yellow-300">
-                      <strong>⚡ Inngest Mode:</strong> Workflow runs in background with automatic retries
-                    </div>
-                  )}
-
-                  {/* Node Manipulation Mode Toggle */}
-                  <Button
-                    onClick={toggleNodeManipulationMode}
-                    variant={isNodeManipulationMode ? "default" : "outline"}
-                    size="lg"
-                    className={`w-full gap-2 ${isNodeManipulationMode ? 'bg-orange-600 hover:bg-orange-700' : ''}`}
-                    disabled={isExecuting}
-                  >
-                    <RefreshCw className="w-5 h-5" />
-                    {isNodeManipulationMode ? '💾 Save & Exit' : '✏️ Edit Nodes'}
-                  </Button>
-                  
-                  {/* Edit Workflow Button */}
-                  <Button
-                    onClick={toggleEditMode}
-                    variant={isEditMode ? "default" : "outline"}
-                    size="lg"
-                    className={`w-full gap-2 ${isEditMode ? 'bg-purple-600 hover:bg-purple-700' : ''}`}
-                    disabled={isNodeManipulationMode}
-                  >
-                    <Mic className="w-5 h-5" />
-                    {isEditMode ? '✓ Voice Edit Active' : '🎙️ Voice Edit'}
-                  </Button>
-                  
-                  {/* Run Workflow Button */}
-                  {!isExecuting && (
-                    <Button
-                      onClick={handleRunWorkflow}
-                      size="lg"
-                      className="w-full gap-2"
-                      disabled={isEditMode || isNodeManipulationMode}
-                    >
-                      <Play className="w-5 h-5" />
-                      {useBackgroundExecution ? 'Run in Background' : 'Run Workflow'}
-                    </Button>
-                  )}
-                </div>
-                
-                {isEditMode && (
-                  <div className="mt-4 p-3 bg-purple-500/10 border border-purple-500/30 rounded-lg">
-                    <p className="text-xs text-purple-300">
-                      <strong>Voice Edit Examples:</strong><br/>
-                      • "Add a Slack notification step"<br/>
-                      • "Remove the email step"<br/>
-                      • "Add another summary step before email"
-                    </p>
-                  </div>
-                )}
-                
-                {isNodeManipulationMode && (
-                  <div className="mt-4 p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg">
-                    <p className="text-xs text-orange-300">
-                      <strong>✏️ Node Edit Mode:</strong><br/>
-                      • <strong>Drag</strong> nodes to reposition<br/>
-                      • Click <strong>×</strong> button to delete node<br/>
-                      • Edges update automatically
-                    </p>
-                  </div>
-                )}
-              </Card>
-            )}
-
-            {/* Execution Logs */}
-            {executionLogs.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold">Execution Logs</h2>
-                  {executionTime && !isExecuting && (
-                    <span className="text-sm text-green-400">
-                      Completed in {executionTime}s
-                    </span>
-                  )}
-                </div>
-                <ExecutionLogs logs={executionLogs} />
-              </div>
-            )}
           </div>
+        )}
+      </div>
 
-          {/* Right Panel - Workflow Canvas */}
-          <div className="lg:sticky lg:top-8 h-[600px]">
-            <Card className="h-full bg-gray-900/50 border-gray-800 overflow-hidden">
-              <div className="p-4 border-b border-gray-800">
-                <h2 className="text-lg font-semibold">Workflow Graph</h2>
-                <p className="text-sm text-gray-400">Visual representation of your workflow</p>
-              </div>
-              <div className="h-[calc(100%-80px)]">
-                <WorkflowCanvas
-                  nodes={workflow?.nodes || []}
-                  edges={workflow?.edges || []}
-                  activeNodeId={activeNodeId}
-                  onNodePositionUpdate={handleNodePositionUpdate}
-                  onNodeDelete={handleNodeDelete}
-                  isInteractive={isNodeManipulationMode && !isExecuting && !isEditMode}
-                />
-              </div>
-            </Card>
-          </div>
-        </div>
-      </main>
+      {/* Nodes Library - Shows when manual mode is enabled or always available */}
+      {manualMode && <NodesLibrary onAddNode={handleAddNode} />}
+      
+      {/* Node Configuration Panel */}
+      <NodeConfigPanel
+        node={selectedNodeForConfig}
+        onClose={() => setSelectedNodeForConfig(null)}
+        onSave={handleSaveNodeConfig}
+      />
 
       {/* Config Modal */}
       {workflow && (
@@ -753,7 +999,7 @@ export default function Home() {
         />
       )}
 
-      {/* Workflow History */}
+      {/* Workflow History - Already Floating */}
       <WorkflowHistory onRestore={handleRestoreWorkflow} />
     </div>
   );

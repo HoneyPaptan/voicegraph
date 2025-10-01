@@ -1,7 +1,14 @@
 /**
  * Workflow node types
  */
-export type NodeType = 'notion' | 'llm' | 'email';
+export type NodeType = 
+  | 'notion' 
+  | 'notion_create' 
+  | 'llm' 
+  | 'email' 
+  | 'tavily' 
+  | 'web_search' 
+  | 'github';
 
 /**
  * Workflow node definition

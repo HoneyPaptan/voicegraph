@@ -1,7 +1,9 @@
 import { WorkflowNode, ExecutionContext, NodeExecutionResult } from './types';
-import { fetchNotion, fetchNotionPage, fetchNotionDatabase } from './tools/notion';
+import { fetchNotion, fetchNotionPage, fetchNotionDatabase, createNotionPage, appendToNotionPage, createWorkflowResultsPage } from './tools/notion';
 import { sendEmail } from './tools/email';
 import { generateContent } from './cerebras';
+import { searchWeb, extractWebData } from './tools/tavily';
+import { getGitHubRepos, getGitHubIssues, createGitHubIssue } from './tools/github';
 
 /**
  * Executes a single workflow node
@@ -23,12 +25,25 @@ export async function executeNode(
         output = await executeNotionNode(node, context);
         break;
 
+      case 'notion_create':
+        output = await executeNotionCreateNode(node, context);
+        break;
+
       case 'llm':
         output = await executeLLMNode(node, context);
         break;
 
       case 'email':
         output = await executeEmailNode(node, context);
+        break;
+
+      case 'tavily':
+      case 'web_search':
+        output = await executeTavilyNode(node, context);
+        break;
+
+      case 'github':
+        output = await executeGitHubNode(node, context);
         break;
 
       default:
@@ -160,5 +175,189 @@ async function executeEmailNode(
   }
 
   return await sendEmail(to, subject, body);
+}
+
+/**
+ * Executes a Notion Create node
+ * Creates a new Notion page or appends to existing page
+ */
+async function executeNotionCreateNode(
+  node: WorkflowNode,
+  context: ExecutionContext
+): Promise<string> {
+  const { action, params } = node;
+
+  console.log(`📝 Notion Create node action: ${action}`);
+
+  if (action === 'create_page') {
+    // Try to get parent ID - prioritize user config, then env default, then null
+    const parentId = context.notionDatabaseId || context.notionPageId || 
+                    params?.databaseId || params?.pageId || params?.parentId || 
+                    process.env.NOTION_PAGE_DEFAULT_ID || null;
+    
+    const title = params?.title || `Workflow Result - ${new Date().toLocaleString()}`;
+    const content = context.lastOutput || '';
+
+    console.log(`📝 Creating Notion page with parent: ${parentId || 'none (standalone)'}`);
+    console.log(`📝 Using default database: ${process.env.NOTION_PAGE_DEFAULT_ID ? 'Yes' : 'No'}`);
+    console.log(`📝 Title: "${title}"`);
+
+    const result = await createNotionPage(parentId, title, content);
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to create Notion page');
+    }
+
+    return result.data || 'Page created successfully';
+  } 
+  else if (action === 'append_to_page') {
+    const pageId = context.notionPageId || params?.pageId;
+    const content = context.lastOutput || '';
+
+    if (!pageId) {
+      throw new Error('Notion Page ID not provided for appending content');
+    }
+
+    const result = await appendToNotionPage(pageId, content);
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to append to Notion page');
+    }
+
+    return result.data || 'Content appended successfully';
+  }
+  else {
+    throw new Error(`Unknown Notion create action: ${action}`);
+  }
+}
+
+/**
+ * Executes a Tavily Web Search node
+ */
+async function executeTavilyNode(
+  node: WorkflowNode,
+  context: ExecutionContext
+): Promise<string> {
+  const { action, params } = node;
+
+  console.log(`🔍 Tavily node action: ${action}`);
+
+  const query = params?.query || params?.search_query;
+  
+  if (!query) {
+    throw new Error('Search query not provided for Tavily search');
+  }
+
+  const maxResults = params?.max_results || params?.maxResults || 5;
+
+  const result = await searchWeb(query, maxResults);
+
+  if (!result.success) {
+    throw new Error(result.error || 'Web search failed');
+  }
+
+  return result.data || 'No results found';
+}
+
+/**
+ * Executes a GitHub node
+ * Supports fetching repos, issues, and creating issues
+ */
+async function executeGitHubNode(
+  node: WorkflowNode,
+  context: ExecutionContext
+): Promise<string> {
+  const { action, params } = node;
+
+  console.log(`🐙 GitHub node action: ${action}`);
+  console.log(`🔧 GitHub config - Repository URL: ${context.githubRepoUrl || 'NOT_SET'}`);
+
+  if (action === 'get_repos' || action === 'fetch_repos') {
+    const usernameOrUrl = params?.username || params?.owner || params?.url || params?.repo_url;
+    const maxRepos = params?.max_repos || params?.maxRepos || 10;
+
+    console.log(`📦 GitHub repos request - Username/URL: ${usernameOrUrl || 'default (HoneyPaptan)'}`);
+    
+    const result = await getGitHubRepos(usernameOrUrl, maxRepos);
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to fetch GitHub repos');
+    }
+
+    return result.data || 'No repositories found';
+  }
+  else if (action === 'get_issues' || action === 'fetch_issues') {
+    // Prioritize user configuration first, then workflow params
+    let repoUrl = context.githubRepoUrl; // User's config comes first
+    
+    // Only use workflow params if no config provided
+    if (!repoUrl) {
+      repoUrl = params?.repo_url || params?.url;
+      
+      if (!repoUrl && params?.owner && params?.repo) {
+        repoUrl = `${params.owner}/${params.repo}`;
+      }
+      
+      if (!repoUrl && params?.repository) {
+        repoUrl = params.repository;
+      }
+    }
+
+    if (!repoUrl) {
+      throw new Error('GitHub repository URL must be provided. Please enter it in the configuration modal or specify in workflow parameters. Examples: "owner/repo", "https://github.com/owner/repo"');
+    }
+
+    const state = (params?.state as 'open' | 'closed' | 'all') || 'open';
+    const maxIssues = params?.max_issues || params?.maxIssues || 10;
+
+    console.log(`🐛 GitHub issues request - Repository: ${repoUrl}, State: ${state}`);
+    console.log(`📋 Repository source: ${context.githubRepoUrl === repoUrl ? 'USER_CONFIG' : 'WORKFLOW_PARAMS'}`);
+
+    const result = await getGitHubIssues(repoUrl, state, maxIssues);
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to fetch GitHub issues');
+    }
+
+    return result.data || 'No issues found';
+  }
+  else if (action === 'create_issue') {
+    // Prioritize user configuration first, then workflow params
+    let repoUrl = context.githubRepoUrl; // User's config comes first
+    
+    // Only use workflow params if no config provided
+    if (!repoUrl) {
+      repoUrl = params?.repo_url || params?.url;
+      
+      if (!repoUrl && params?.owner && params?.repo) {
+        repoUrl = `${params.owner}/${params.repo}`;
+      }
+      
+      if (!repoUrl && params?.repository) {
+        repoUrl = params.repository;
+      }
+    }
+
+    if (!repoUrl) {
+      throw new Error('GitHub repository URL must be provided for issue creation. Please enter it in the configuration modal or specify in workflow parameters. Examples: "owner/repo", "https://github.com/owner/repo"');
+    }
+
+    const title = params?.title || `Workflow Result - ${new Date().toLocaleString()}`;
+    const body = context.lastOutput || params?.body || 'This issue was created automatically by a workflow.';
+
+    console.log(`✏️ GitHub issue creation - Repository: ${repoUrl}, Title: "${title}"`);
+    console.log(`📋 Repository source: ${context.githubRepoUrl === repoUrl ? 'USER_CONFIG' : 'WORKFLOW_PARAMS'}`);
+
+    const result = await createGitHubIssue(repoUrl, title, body);
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to create GitHub issue');
+    }
+
+    return result.data || 'Issue created successfully';
+  }
+  else {
+    throw new Error(`Unknown GitHub action: ${action}. Supported actions: get_repos, fetch_repos, get_issues, fetch_issues, create_issue`);
+  }
 }
 

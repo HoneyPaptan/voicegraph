@@ -51,8 +51,8 @@ The workflow should have this structure:
   "nodes": [
     {
       "id": "step-0",
-      "type": "notion" | "llm" | "email",
-      "action": "fetch_page" | "fetch_database" | "summarize" | "analyze" | "extract_insights" | "custom_action_name" | "send",
+      "type": "notion" | "notion_create" | "llm" | "email" | "tavily" | "web_search" | "github",
+      "action": "fetch_page" | "fetch_database" | "create_page" | "append_to_page" | "summarize" | "analyze" | "extract_insights" | "custom_action_name" | "send" | "search_web" | "get_repos" | "get_issues" | "create_issue",
       "label": "Human readable label",
       "params": {}
     }
@@ -66,12 +66,34 @@ The workflow should have this structure:
   ]
 }
 
+Node Types and Actions:
+- "notion" - Fetch Notion pages/databases
+  Actions: fetch_page, fetch_database
+- "notion_create" - Create or update Notion content
+  Actions: create_page, append_to_page
+- "llm" - AI processing (summarize, analyze, extract data)
+  Actions: summarize, analyze, extract_insights, or any custom snake_case action
+- "email" - Send email results
+  Actions: send
+- "tavily" / "web_search" - Search the web for current information
+  Actions: search_web (params: {query: "search query"})
+- "github" - GitHub repository operations (supports URLs and username defaults to HoneyPaptan)
+  Actions: 
+  * get_repos (params: {username?, url?}) - defaults to HoneyPaptan if no username/URL
+  * get_issues (params: {}) - repository will be provided by user configuration
+  * create_issue (params: {title?}) - repository will be provided by user configuration
+
 Rules:
-- Use "notion" type for fetching Notion pages/databases
-- Use "llm" type for summarizing, analyzing, extracting data, or any AI processing
-  - For custom LLM tasks, use snake_case action names (e.g., "extract_meeting_date", "find_action_items")
-- Use "email" type for sending results
+- Use "tavily" or "web_search" when user mentions searching the web, finding current information, or real-time data
+- Use "github" when user mentions GitHub repositories, issues, or code:
+  * For get_repos: defaults to username "HoneyPaptan" unless user specifies another user/URL
+  * For get_issues/create_issue: DO NOT include repo_url in params, user will provide via configuration
+  * Examples: "my GitHub repos", "issues from my project", "create issue in my repository"
+- Use "notion_create" when user wants to CREATE or SAVE data back to Notion (will use default database)
+- Use "notion" only for READING/FETCHING Notion data
+- Use "llm" for any AI processing, analysis, or transformation
 - Generate descriptive labels for each node
+- For "notion_create" nodes, the system will automatically use the user's configured default database
 
 CRITICAL - Edge Structure for Parallel Execution:
 When user says "at the same time", "parallel", "simultaneously", "both":

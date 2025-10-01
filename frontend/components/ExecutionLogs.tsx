@@ -52,50 +52,55 @@ export function ExecutionLogs({ logs }: ExecutionLogsProps) {
     // Keep all non-progress logs
     if (log.type !== 'progress') return true;
     
-    // For progress logs, check if there's a later success/error log for the same node
-    const hasCompletedLater = logs.slice(index + 1).some(
-      laterLog => 
-        laterLog.nodeId === log.nodeId && 
-        (laterLog.type === 'success' || laterLog.type === 'error')
+    // For progress logs, check if there's ANY success/error log for the same node (not just later)
+    const hasCompleted = logs.some(
+      otherLog => 
+        otherLog.nodeId === log.nodeId && 
+        (otherLog.type === 'success' || otherLog.type === 'error') &&
+        otherLog.timestamp >= log.timestamp // Only consider completion logs after progress
     );
     
-    // Only show progress log if node hasn't completed yet
-    return !hasCompletedLater;
+    // Also hide progress logs if there's a system completion log
+    const workflowCompleted = logs.some(
+      systemLog => 
+        systemLog.nodeId === 'system' && 
+        systemLog.type === 'success' &&
+        systemLog.message.includes('completed successfully')
+    );
+    
+    // Only show progress log if node hasn't completed yet and workflow isn't done
+    return !hasCompleted && !workflowCompleted;
   });
 
   if (logs.length === 0) {
     return (
-      <Card className="p-4 bg-gray-900/50 border-gray-800">
-        <div className="text-gray-500 text-sm text-center">
-          Execution logs will appear here...
-        </div>
-      </Card>
+      <div className="text-gray-500 text-xs text-center py-4">
+        Execution logs will appear here...
+      </div>
     );
   }
 
   return (
-    <Card className="p-4 bg-gray-900/50 border-gray-800 max-h-64 overflow-y-auto">
-      <div className="space-y-2">
-        {filteredLogs.map((log, index) => (
-          <motion.div
-            key={`${log.nodeId}-${index}-${log.timestamp}`}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3 }}
-            className="flex items-start gap-2 text-sm"
-          >
-            {getIcon(log.type)}
-            <div className={`flex-1 ${getTextColor(log.type)}`}>
-              {log.message}
-            </div>
-            <div className="text-xs text-gray-500">
-              {new Date(log.timestamp).toLocaleTimeString()}
-            </div>
-          </motion.div>
-        ))}
-        <div ref={logsEndRef} />
-      </div>
-    </Card>
+    <div className="space-y-2">
+      {filteredLogs.map((log, index) => (
+        <motion.div
+          key={`${log.nodeId}-${index}-${log.timestamp}`}
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.3 }}
+          className="flex items-start gap-2 text-xs"
+        >
+          {getIcon(log.type)}
+          <div className={`flex-1 ${getTextColor(log.type)}`}>
+            {log.message}
+          </div>
+          <div className="text-[10px] text-gray-500">
+            {new Date(log.timestamp).toLocaleTimeString()}
+          </div>
+        </motion.div>
+      ))}
+      <div ref={logsEndRef} />
+    </div>
   );
 }
 

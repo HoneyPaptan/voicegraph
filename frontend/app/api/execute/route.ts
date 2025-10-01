@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
             notionPageId: config.notionPageId,
             notionDatabaseId: config.notionDatabaseId,
             recipientEmail: config.recipientEmail,
+            githubRepoUrl: config.githubRepoUrl,
           };
 
           sendEvent({
@@ -88,19 +89,21 @@ export async function POST(request: NextRequest) {
             // Wait for all nodes in layer to complete
             const layerResults = await Promise.all(layerPromises);
             
+            // Collect all outputs from this layer
+            const layerOutputs: string[] = [];
+            
             // Process results and update context
             for (const { node, result } of layerResults) {
               if (result.success && 'output' in result) {
                 // Store output in context
                 context[node.id] = result.output;
                 
-                // Update lastOutput with the result from this layer
-                // If multiple nodes in layer, lastOutput will be the last one processed
-                context.lastOutput = result.output;
+                // Collect output for combining
+                layerOutputs.push(result.output);
                 
                 // Store source content from Notion for later LLM nodes to reference
-                if (node.type === 'notion') {
-                  // If multiple Notion nodes, store all of them
+                if (node.type === 'notion' || node.type === 'tavily' || node.type === 'web_search' || node.type === 'github') {
+                  // If multiple source nodes, combine all of them
                   if (!context.sourceContent) {
                     context.sourceContent = result.output;
                   } else {
@@ -127,6 +130,20 @@ export async function POST(request: NextRequest) {
                 
                 // Stop execution on error
                 throw new Error(result.error);
+              }
+            }
+            
+            // Combine outputs from parallel nodes
+            if (layerOutputs.length > 0) {
+              if (layerOutputs.length === 1) {
+                // Single node in layer
+                context.lastOutput = layerOutputs[0];
+              } else {
+                // Multiple parallel nodes - combine all outputs
+                console.log(`🔄 Combining ${layerOutputs.length} parallel outputs`);
+                context.lastOutput = layerOutputs
+                  .map((output, idx) => `## Result ${idx + 1}\n\n${output}`)
+                  .join('\n\n---\n\n');
               }
             }
           }

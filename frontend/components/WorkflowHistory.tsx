@@ -89,10 +89,10 @@ export function WorkflowHistory({ onRestore }: WorkflowHistoryProps) {
       <Button
         onClick={() => setIsOpen(true)}
         variant="outline"
-        className="fixed bottom-6 right-6 gap-2"
+        className="fixed bottom-6 right-6 gap-2 bg-gray-900/90 backdrop-blur-md border-gray-700 hover:bg-gray-800/90 shadow-2xl z-20"
       >
         <HistoryIcon className="w-4 h-4" />
-        Workflow History ({history.length})
+        History ({history.length})
         {runningCount > 0 && (
           <span className="ml-1 px-1.5 py-0.5 bg-blue-500 text-white text-xs rounded-full animate-pulse">
             {runningCount}
@@ -103,11 +103,11 @@ export function WorkflowHistory({ onRestore }: WorkflowHistoryProps) {
   }
 
   return (
-    <Card className="fixed bottom-6 right-6 w-96 max-h-[500px] bg-gray-900/95 border-gray-800 backdrop-blur-sm overflow-hidden flex flex-col">
-      <div className="p-4 border-b border-gray-800 flex items-center justify-between">
+    <Card className="fixed bottom-6 right-6 w-96 max-h-[500px] bg-gray-900/95 border-gray-700 backdrop-blur-md shadow-2xl overflow-hidden flex flex-col z-20">
+      <div className="p-3 border-b border-gray-800 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <HistoryIcon className="w-5 h-5" />
-          <h3 className="font-semibold">Workflow History</h3>
+          <HistoryIcon className="w-4 h-4" />
+          <h3 className="text-sm font-semibold">Workflow History</h3>
         </div>
         <Button
           variant="ghost"

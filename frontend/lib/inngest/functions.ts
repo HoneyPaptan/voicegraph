@@ -30,9 +30,11 @@ export const executeWorkflowFunction = inngest.createFunction(
       // Step 1: Initialize execution context
       const context: ExecutionContext = await step.run('initialize-context', async () => {
         return {
+          ...config, // Include all config fields
           notionPageId: config.notionPageId,
           notionDatabaseId: config.notionDatabaseId,
           recipientEmail: config.recipientEmail,
+          githubRepoUrl: config.githubRepoUrl,
           outputs: {},
           lastOutput: undefined,
           sourceContent: undefined,
@@ -91,16 +93,39 @@ export const executeWorkflowFunction = inngest.createFunction(
         });
         
         // Update context with results from this layer
+        const layerOutputs: string[] = [];
+        
         for (const item of layerResults as any[]) {
           const { node, result } = item;
           if (result.success && 'output' in result) {
             context.outputs[node.id] = result.output;
-            context.lastOutput = result.output;
+            
+            // Collect output for combining
+            layerOutputs.push(result.output);
 
-            // Store source content from Notion nodes
-            if (node.type === 'notion' && result.output) {
-              context.sourceContent = result.output;
+            // Store source content from source nodes (Notion, Tavily, GitHub)
+            if (node.type === 'notion' || node.type === 'tavily' || node.type === 'web_search' || node.type === 'github') {
+              if (!context.sourceContent) {
+                context.sourceContent = result.output;
+              } else {
+                // Combine multiple sources
+                context.sourceContent += '\n\n---\n\n' + result.output;
+              }
             }
+          }
+        }
+        
+        // Combine outputs from parallel nodes
+        if (layerOutputs.length > 0) {
+          if (layerOutputs.length === 1) {
+            // Single node in layer
+            context.lastOutput = layerOutputs[0];
+          } else {
+            // Multiple parallel nodes - combine all outputs
+            console.log(`🔄 Combining ${layerOutputs.length} parallel outputs`);
+            context.lastOutput = layerOutputs
+              .map((output, idx) => `## Result ${idx + 1}\n\n${output}`)
+              .join('\n\n---\n\n');
           }
         }
       }
