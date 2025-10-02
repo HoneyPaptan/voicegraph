@@ -54,6 +54,10 @@ export async function executeNode(
         output = await executeFileUploadNode(node, context);
         break;
 
+      case 'prompt':
+        output = await executePromptNode(node, context);
+        break;
+
       default:
         throw new Error(`Unknown node type: ${node.type}`);
     }
@@ -250,21 +254,35 @@ async function executeTavilyNode(
 
   console.log(`🔍 Tavily node action: ${action}`);
 
-  const query = params?.query || params?.search_query;
-  
+  // Build query with simple placeholder replacement from previous user input
+  let query = params?.query || params?.search_query || '';
+  const userInput = (context.lastOutput || context.sourceContent || '').toString();
+  if (query.includes('{input}')) {
+    query = query.replaceAll('{input}', userInput);
+  } else if (query.includes('DESTINATION')) {
+    query = query.replaceAll('DESTINATION', userInput);
+  }
   if (!query) {
+    query = userInput; // fallback to user input entirely
+  }
+
+  if (!query || query.trim().length === 0) {
     throw new Error('Search query not provided for Tavily search');
   }
 
   const maxResults = params?.max_results || params?.maxResults || 5;
+  const includeDomains = params?.includeDomains || params?.include_domains;
+  const site = params?.site;
 
-  const result = await searchWeb(query, maxResults);
+  const result = await searchWeb(query, { maxResults, includeDomains, site });
 
   if (!result.success) {
     throw new Error(result.error || 'Web search failed');
   }
 
-  return result.data || 'No results found';
+  // Concatenate with existing output so downstream summarization can see both routes and hotels
+  const previous = context.lastOutput ? String(context.lastOutput) + '\n\n' : '';
+  return previous + (result.data || '');
 }
 
 /**
@@ -411,5 +429,21 @@ async function executeFileUploadNode(
   
   // If no file content, this might be a configuration error
   throw new Error('No file uploaded for file upload node. Please upload a file first.');
+}
+
+/**
+ * Executes a basic Prompt node
+ * Seeds the pipeline with a user-provided instruction or starting text
+ */
+async function executePromptNode(
+  node: WorkflowNode,
+  context: ExecutionContext
+): Promise<string> {
+  const text = node.params?.text || node.params?.prompt || '';
+  if (!text || typeof text !== 'string') {
+    throw new Error('Prompt text is required for this node.');
+  }
+  // Set lastOutput so downstream nodes can consume
+  return text.trim();
 }
 

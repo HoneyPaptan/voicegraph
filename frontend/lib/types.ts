@@ -12,7 +12,8 @@ export type NodeType =
   | 'file_upload'
   | 'csv_upload'
   | 'pdf_upload'
-  | 'txt_upload';
+  | 'txt_upload'
+  | 'prompt';
 
 /**
  * Workflow node definition

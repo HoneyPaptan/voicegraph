@@ -100,6 +100,14 @@ const AVAILABLE_NODES: NodeLibraryItem[] = [
     color: 'from-blue-500 to-blue-600',
     actions: ['upload_txt'],
   },
+  {
+    type: 'prompt',
+    label: 'Prompt',
+    icon: <Sparkles className="w-5 h-5" />,
+    description: 'Seed with a starting instruction',
+    color: 'from-fuchsia-500 to-pink-600',
+    actions: ['seed'],
+  },
 ];
 
 export function NodesLibrary({ onAddNode, compact = false }: NodesLibraryProps) {

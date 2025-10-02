@@ -852,9 +852,72 @@ export default function Home() {
                       <Button
                         variant="outline"
                         className="h-10 px-4 bg-gray-900/50 hover:bg-gray-800/70 border-gray-700 hover:border-orange-600 transition-all text-orange-300 hover:text-orange-200"
-                        onClick={() => loadExample('Get my Notion project tasks, search for best practices, analyze both together, and email me an action plan with recommendations')}
+                        onClick={() => {
+                          const now = Date.now();
+                          const nodes: WorkflowNode[] = [
+                            {
+                              id: 'step-0',
+                              type: 'prompt' as any,
+                              action: 'seed',
+                              label: 'Trip Request',
+                              params: {
+                                text: 'Enter your destination and (optional) dates. Example: Paris, 12-16 Oct. The system will find fastest and cheapest routes and hotels.'
+                              },
+                              position: { x: 150, y: 150 },
+                            },
+                            {
+                              id: 'step-1',
+                              type: 'tavily' as any,
+                              action: 'search',
+                              label: 'Find Routes',
+                              params: {
+                                query: 'fastest and cheapest routes to {input} flights trains buses with booking urls',
+                                maxResults: 5,
+                              },
+                              position: { x: 450, y: 120 },
+                            },
+                            {
+                              id: 'step-2',
+                              type: 'tavily' as any,
+                              action: 'search',
+                              label: 'Find Hotels',
+                              params: {
+                                query: 'best hotels near {input} city center budget friendly 3-4 star with direct booking urls',
+                                maxResults: 5,
+                                includeDomains: ['booking.com','hotels.com','tripadvisor.com'],
+                              },
+                              position: { x: 450, y: 220 },
+                            },
+                            {
+                              id: 'step-3',
+                              type: 'llm' as any,
+                              action: 'summarize',
+                              label: 'Summarize Itinerary',
+                              params: {
+                                prompt: 'Create a trip plan that strictly uses the provided destination and dates from the input; never assume a different city. Include: 1) Fastest route with Google Maps or booking URL; 2) Cheapest viable route with Google Maps or booking URL; 3) A table of 5 hotels (Name, Area, Price range, Direct URL); 4) Short day-by-day outline. If info is missing, say “Not found” instead of assuming.'
+                              },
+                              position: { x: 750, y: 170 },
+                            },
+                            {
+                              id: 'step-4',
+                              type: 'email' as any,
+                              action: 'send',
+                              label: 'Email Plan',
+                              params: { subject: 'Your Trip Plan' },
+                              position: { x: 1050, y: 170 },
+                            },
+                          ];
+                          const edges = [
+                            { id: 'edge-0', source: 'step-0', target: 'step-1' },
+                            { id: 'edge-1', source: 'step-1', target: 'step-3' },
+                            { id: 'edge-2', source: 'step-0', target: 'step-2' },
+                            { id: 'edge-3', source: 'step-2', target: 'step-3' },
+                            { id: 'edge-4', source: 'step-3', target: 'step-4' },
+                          ];
+                          setWorkflow({ workflowId: `workflow-${now}`, nodes, edges });
+                        }}
                       >
-                        Smart Action Planner
+                        Trip Planner
                       </Button>
                     </div>
                     <div className="mt-4 flex items-center justify-center">

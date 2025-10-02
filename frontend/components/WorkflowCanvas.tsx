@@ -68,6 +68,8 @@ function CustomNode({ data, id }: { data: any; id: string }) {
         return <FileImage className="w-5 h-5" />;
       case 'txt_upload':
         return <FileText className="w-5 h-5" />;
+      case 'prompt':
+        return <Sparkles className="w-5 h-5" />;
       default:
         return null;
     }
@@ -96,6 +98,8 @@ function CustomNode({ data, id }: { data: any; id: string }) {
         return 'from-red-500 to-red-600';
       case 'txt_upload':
         return 'from-blue-500 to-blue-600';
+      case 'prompt':
+        return 'from-fuchsia-500 to-pink-600';
       default:
         return 'from-gray-500 to-gray-600';
     }
@@ -156,6 +160,12 @@ function CustomNode({ data, id }: { data: any; id: string }) {
         position={Position.Top}
         className="w-3 h-3 !bg-white border-2 border-gray-400"
       />
+      {/* Left target handle for left-to-right alignment */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        className="w-3 h-3 !bg-white border-2 border-gray-400"
+      />
       
       <div className="flex items-center gap-2">
         {getIcon()}
@@ -167,6 +177,12 @@ function CustomNode({ data, id }: { data: any; id: string }) {
       <Handle
         type="source"
         position={Position.Bottom}
+        className="w-3 h-3 !bg-white border-2 border-gray-400"
+      />
+      {/* Right source handle for left-to-right alignment */}
+      <Handle
+        type="source"
+        position={Position.Right}
         className="w-3 h-3 !bg-white border-2 border-gray-400"
       />
     </motion.div>
@@ -309,10 +325,17 @@ export function WorkflowCanvas({
       return;
     }
     
+    // Normalize orientation: prefer Right(source) → Left(target)
+    const normalized: Connection = {
+      ...connection,
+      sourceHandle: connection.sourceHandle || 'right',
+      targetHandle: connection.targetHandle || 'left',
+    };
+    
     // Add edge to local state immediately for smooth UX
     setRfEdges((eds) => addEdge({
-      ...connection,
-      type: 'smoothstep',
+      ...normalized,
+      type: 'removable',
       animated: true,
       style: { stroke: '#8b5cf6', strokeWidth: 3 },
       markerEnd: {
@@ -323,7 +346,7 @@ export function WorkflowCanvas({
     
     // Notify parent component
     if (onEdgeConnect) {
-      onEdgeConnect(connection.source, connection.target);
+      onEdgeConnect(normalized.source!, normalized.target!);
     }
   }, [onEdgeConnect, onError, rfEdges]);
   
@@ -371,8 +394,8 @@ export function WorkflowCanvas({
             onDelete: isInteractive ? handleNodeDelete : undefined,
             onConfigure: handleNodeConfigure,
           },
-          sourcePosition: Position.Bottom,
-          targetPosition: Position.Top,
+          sourcePosition: Position.Right,
+          targetPosition: Position.Left,
           draggable: isInteractive,
         });
       });

@@ -109,6 +109,11 @@ const NODE_PARAMS_CONFIG: Record<string, Record<string, Array<{
       { key: 'state', label: 'PR State', type: 'text', placeholder: 'open, closed, or all', description: 'Filter by PR state' },
     ],
   },
+  prompt: {
+    seed: [
+      { key: 'text', label: 'Starting Prompt', type: 'textarea', placeholder: 'Describe your goal or starting context...', required: true, description: 'This text will be passed to the next step(s) as the initial content.' },
+    ],
+  },
 };
 
 export function NodeConfigPanel({ node, onClose, onSave }: NodeConfigPanelProps) {
