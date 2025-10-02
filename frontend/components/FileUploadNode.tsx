@@ -12,6 +12,8 @@ interface FileUploadNodeProps {
   onFileRemoved: (nodeId: string) => void;
   initialFile?: File;
   initialContent?: string;
+  allowedTypes?: string[]; // Specific file types allowed for this node
+  nodeType?: string; // The node type (csv_upload, pdf_upload, etc.)
 }
 
 export function FileUploadNode({ 
@@ -19,7 +21,9 @@ export function FileUploadNode({
   onFileUploaded, 
   onFileRemoved,
   initialFile,
-  initialContent 
+  initialContent,
+  allowedTypes,
+  nodeType
 }: FileUploadNodeProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -36,8 +40,8 @@ export function FileUploadNode({
     setIsProcessing(true);
 
     try {
-      // Validate file
-      const validation = validateFile(file);
+      // Validate file with specific type restrictions
+      const validation = validateFile(file, allowedTypes);
       if (!validation.valid) {
         setError(validation.error || 'Invalid file');
         setIsProcessing(false);
@@ -150,7 +154,10 @@ export function FileUploadNode({
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv,.pdf,.txt"
+            accept={allowedTypes ? allowedTypes.map(t => {
+              const ext = t.split('/')[1] || t;
+              return ext === 'csv' ? '.csv' : ext === 'pdf' ? '.pdf' : ext === 'txt' ? '.txt' : `.${ext}`;
+            }).join(',') : ".csv,.pdf,.txt"}
             onChange={handleFileInputChange}
             className="hidden"
           />
@@ -169,7 +176,10 @@ export function FileUploadNode({
                   Drag & drop or click to select
                 </p>
                 <p className="text-xs text-gray-500 mt-2">
-                  Supports CSV, PDF, TXT (max 10MB)
+                  {allowedTypes ? 
+                    `Supports ${allowedTypes.map(t => t.split('/')[1]?.toUpperCase() || t.toUpperCase()).join(', ')} (max 10MB)` :
+                    'Supports CSV, PDF, TXT (max 10MB)'
+                  }
                 </p>
               </div>
             </div>

@@ -23,7 +23,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { motion } from 'framer-motion';
 import { WorkflowNode as WFNode, WorkflowEdge } from '@/lib/types';
-import { Database, Sparkles, Mail, Search, Github, FileEdit, Upload, Settings } from 'lucide-react';
+import { Database, Sparkles, Mail, Search, Github, FileEdit, Upload, FileText, FileSpreadsheet, FileImage, Settings } from 'lucide-react';
 import { analyzeParallelWorkflow, calculateParallelPositions } from '@/lib/parallel-executor';
 
 interface WorkflowCanvasProps {
@@ -62,6 +62,12 @@ function CustomNode({ data, id }: { data: any; id: string }) {
         return <Github className="w-5 h-5" />;
       case 'file_upload':
         return <Upload className="w-5 h-5" />;
+      case 'csv_upload':
+        return <FileSpreadsheet className="w-5 h-5" />;
+      case 'pdf_upload':
+        return <FileImage className="w-5 h-5" />;
+      case 'txt_upload':
+        return <FileText className="w-5 h-5" />;
       default:
         return null;
     }
@@ -84,6 +90,12 @@ function CustomNode({ data, id }: { data: any; id: string }) {
         return 'from-gray-700 to-gray-800';
       case 'file_upload':
         return 'from-indigo-500 to-indigo-600';
+      case 'csv_upload':
+        return 'from-green-500 to-green-600';
+      case 'pdf_upload':
+        return 'from-red-500 to-red-600';
+      case 'txt_upload':
+        return 'from-blue-500 to-blue-600';
       default:
         return 'from-gray-500 to-gray-600';
     }
@@ -109,12 +121,6 @@ function CustomNode({ data, id }: { data: any; id: string }) {
         ${isInteractive ? 'hover:ring-2 hover:ring-white/50 cursor-move' : ''}
       `}
     >
-      {/* Parallel indicator badge */}
-      {isParallel && (
-        <div className="absolute -top-2 -right-2 bg-cyan-500 text-white text-xs px-2 py-0.5 rounded-full font-bold shadow-lg z-10">
-          ⚡
-        </div>
-      )}
       
       {/* Configure button - shows on hover */}
       {hasConfig && data.onConfigure && (

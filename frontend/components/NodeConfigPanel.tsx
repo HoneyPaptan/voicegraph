@@ -15,6 +15,21 @@ interface NodeConfigPanelProps {
   onSave: (nodeId: string, params: Record<string, any>) => void;
 }
 
+// Get file type restrictions based on node type
+function getFileTypeRestrictions(nodeType: string): string[] | undefined {
+  switch (nodeType) {
+    case 'csv_upload':
+      return ['text/csv', 'application/csv'];
+    case 'pdf_upload':
+      return ['application/pdf'];
+    case 'txt_upload':
+      return ['text/plain', 'text/txt'];
+    case 'file_upload':
+    default:
+      return undefined; // Allow all types
+  }
+}
+
 // Define parameter configurations for each node type and action
 const NODE_PARAMS_CONFIG: Record<string, Record<string, Array<{
   key: string;
@@ -139,7 +154,7 @@ export function NodeConfigPanel({ node, onClose, onSave }: NodeConfigPanelProps)
     });
 
     // Special validation for file upload nodes
-    if (node.type === 'file_upload' && !params.fileContent) {
+    if (['file_upload', 'csv_upload', 'pdf_upload', 'txt_upload'].includes(node.type) && !params.fileContent) {
       newErrors.fileContent = 'Please upload a file before saving';
     }
 
@@ -149,7 +164,7 @@ export function NodeConfigPanel({ node, onClose, onSave }: NodeConfigPanelProps)
     }
 
     // For file upload nodes, we need to pass the file content in a special way
-    if (node.type === 'file_upload') {
+    if (['file_upload', 'csv_upload', 'pdf_upload', 'txt_upload'].includes(node.type)) {
       const fileUploadParams = {
         ...params,
         // Store file content in the node structure for the executor
@@ -191,7 +206,7 @@ export function NodeConfigPanel({ node, onClose, onSave }: NodeConfigPanelProps)
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4">
-          {node.type === 'file_upload' ? (
+          {['file_upload', 'csv_upload', 'pdf_upload', 'txt_upload'].includes(node.type) ? (
             <div className="space-y-4">
               <div>
                 <Label className="text-sm font-medium text-gray-300 mb-2 block">
@@ -221,9 +236,14 @@ export function NodeConfigPanel({ node, onClose, onSave }: NodeConfigPanelProps)
                   }}
                   initialFile={node.uploadedFile}
                   initialContent={node.fileContent}
+                  allowedTypes={getFileTypeRestrictions(node.type)}
+                  nodeType={node.type}
                 />
                 <p className="text-xs text-gray-500 mt-2">
-                  Upload CSV, PDF, or TXT files. The text content will be extracted and passed to downstream nodes.
+                  {node.type === 'csv_upload' && 'Upload CSV files. The data will be converted to readable text and passed to downstream nodes.'}
+                  {node.type === 'pdf_upload' && 'Upload PDF files. The text content will be extracted and passed to downstream nodes.'}
+                  {node.type === 'txt_upload' && 'Upload text files. The content will be passed to downstream nodes.'}
+                  {node.type === 'file_upload' && 'Upload CSV, PDF, or TXT files. The text content will be extracted and passed to downstream nodes.'}
                 </p>
               </div>
             </div>

@@ -91,6 +91,11 @@ export async function POST(request: NextRequest) {
 
     const prompt = `You are an intelligent workflow editor AI with full context awareness. A user wants to modify their existing workflow using natural voice commands.
 
+STRICT MODE CONTRACT:
+- If the user message is clear small-talk with NO workflow intent, return the exact string: __OFF_TOPIC__
+- If the message contains workflow intent but is ambiguous, prefer making the most reasonable edit rather than returning __OFF_TOPIC__
+- When inserting a node AFTER another, REWIRE EDGES: connect source → new_node and new_node → former_target(s). Do not leave the old source → former_target edges in place unless user says "in parallel".
+
 CURRENT WORKFLOW ANALYSIS:
 ${flowDescription}
 
@@ -112,7 +117,7 @@ CONTEXT UNDERSTANDING RULES:
    - Preserve the logical flow structure
 
 3. **Addition Logic**:
-   - "add [X] after [Y]" = insert between Y and Y's current target
+   - "add [X] after [Y]" = insert between Y and Y's current target (rewire edges)
    - "add [X] before [Y]" = insert between Y's source and Y
    - "add [X] in parallel to [Y]" = create from same source as Y
    - "add [X]" (no position specified) = add at the most logical position
@@ -129,6 +134,10 @@ AVAILABLE NODE TYPES & ACTIONS:
 - email: send  
 - tavily: search, search_news
 - github: get_commits, get_repo_info, get_pull_requests
+- file_upload: upload_any (for any file type)
+- csv_upload: upload_csv (for CSV files specifically)
+- pdf_upload: upload_pdf (for PDF files specifically)
+- txt_upload: upload_txt (for text files specifically)
 
 SMART EDITING BEHAVIORS:
 1. **Node Replacement**: When replacing, copy the old node's position and connections exactly
@@ -149,20 +158,74 @@ PARALLEL PROCESSING KEYWORDS:
 "at the same time", "parallel", "simultaneously", "also", "both", "together", "in addition to"
 → Create multiple edges FROM the same source TO different targets
 
-Return ONLY the updated workflow JSON with no explanations.`;
+Return ONLY the updated workflow JSON with no explanations, or the sentinel __OFF_TOPIC__.`;
 
     const { text: response } = await generateText({
       model: cerebras('llama-4-scout-17b-16e-instruct'),
       prompt: prompt,
     });
 
-    // Extract JSON from response
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('Failed to extract JSON from response');
+    // Off-topic handling
+    if (response.includes('__OFF_TOPIC__')) {
+      return NextResponse.json(
+        { error: 'I can modify workflows based on your instructions. Try: "Add a gather information step after upload".' },
+        { status: 400 }
+      );
     }
 
-    let updatedWorkflow = JSON.parse(jsonMatch[0]);
+    // Helper: robustly extract JSON from a possibly noisy response
+    const extractJson = (text: string): any | null => {
+      try {
+        // 1) Prefer fenced code block
+        const fenceMatch = text.match(/```[a-zA-Z]*\n([\s\S]*?)```/);
+        if (fenceMatch && fenceMatch[1]) {
+          const fenced = fenceMatch[1].trim();
+          return JSON.parse(fenced);
+        }
+        // 2) Try first balanced { ... } block
+        const start = text.indexOf('{');
+        if (start === -1) return null;
+        let depth = 0;
+        let inString = false;
+        let escape = false;
+        for (let i = start; i < text.length; i++) {
+          const ch = text[i];
+          if (inString) {
+            if (escape) {
+              escape = false;
+            } else if (ch === '\\') {
+              escape = true;
+            } else if (ch === '"') {
+              inString = false;
+            }
+          } else {
+            if (ch === '"') inString = true;
+            else if (ch === '{') depth++;
+            else if (ch === '}') {
+              depth--;
+              if (depth === 0) {
+                const candidate = text.slice(start, i + 1);
+                return JSON.parse(candidate);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to parse JSON via robust extractor:', e);
+      }
+      return null;
+    };
+
+    const parsed = extractJson(response);
+    if (!parsed) {
+      console.error('Failed to extract JSON from response:', response);
+      return NextResponse.json(
+        { error: 'Edit command understood, but I could not produce a clean workflow JSON. Please rephrase slightly (e.g., "Add a gather information step after file upload").' },
+        { status: 400 }
+      );
+    }
+
+    let updatedWorkflow = parsed;
     
     // Enhanced validation for edited workflows
     const validateEditedWorkflow = (workflow: any, originalWorkflow: any) => {

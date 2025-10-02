@@ -9,7 +9,10 @@ export type NodeType =
   | 'tavily' 
   | 'web_search' 
   | 'github'
-  | 'file_upload';
+  | 'file_upload'
+  | 'csv_upload'
+  | 'pdf_upload'
+  | 'txt_upload';
 
 /**
  * Workflow node definition

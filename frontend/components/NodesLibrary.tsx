@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
-import { Database, Sparkles, Mail, Search, Github, FileEdit, Upload, X, Plus } from 'lucide-react';
+import { Database, Sparkles, Mail, Search, Github, FileEdit, Upload, FileText, FileSpreadsheet, FileImage, X, Plus } from 'lucide-react';
 
 interface NodeLibraryItem {
   type: string;
@@ -72,9 +72,33 @@ const AVAILABLE_NODES: NodeLibraryItem[] = [
     type: 'file_upload',
     label: 'File Upload',
     icon: <Upload className="w-5 h-5" />,
-    description: 'Upload and process files',
+    description: 'Upload any file type',
     color: 'from-indigo-500 to-indigo-600',
-    actions: ['upload_csv', 'upload_pdf', 'upload_txt'],
+    actions: ['upload_any'],
+  },
+  {
+    type: 'csv_upload',
+    label: 'CSV Upload',
+    icon: <FileSpreadsheet className="w-5 h-5" />,
+    description: 'Upload CSV files',
+    color: 'from-green-500 to-green-600',
+    actions: ['upload_csv'],
+  },
+  {
+    type: 'pdf_upload',
+    label: 'PDF Upload',
+    icon: <FileImage className="w-5 h-5" />,
+    description: 'Upload PDF files',
+    color: 'from-red-500 to-red-600',
+    actions: ['upload_pdf'],
+  },
+  {
+    type: 'txt_upload',
+    label: 'TXT Upload',
+    icon: <FileText className="w-5 h-5" />,
+    description: 'Upload text files',
+    color: 'from-blue-500 to-blue-600',
+    actions: ['upload_txt'],
   },
 ];
 
