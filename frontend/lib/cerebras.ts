@@ -45,14 +45,18 @@ export async function parseWorkflow(input: string): Promise<any> {
 
     const prompt = `You are a workflow parser. Convert the following natural language command into a JSON workflow structure.
 
+STRICT MODE CONTRACT (read carefully):
+- If the user message is clear small-talk with NO signs of workflow intent (no verbs like upload/add/create/analyze/summarize/fetch/search/gather/send), return the exact string: __OFF_TOPIC__
+- If the instruction is ambiguous but contains workflow intent, prefer returning your best linear workflow guess rather than __OFF_TOPIC__.
+
 The workflow should have this structure:
 {
   "workflowId": "unique-id",
   "nodes": [
     {
       "id": "step-0",
-      "type": "notion" | "notion_create" | "llm" | "email" | "tavily" | "web_search" | "github",
-      "action": "fetch_page" | "fetch_database" | "create_page" | "append_to_page" | "summarize" | "analyze" | "extract_insights" | "custom_action_name" | "send" | "search_web" | "get_repos" | "get_issues" | "create_issue",
+      "type": "notion" | "notion_create" | "llm" | "email" | "tavily" | "web_search" | "github" | "file_upload" | "csv_upload" | "pdf_upload" | "txt_upload",
+      "action": "fetch_page" | "fetch_database" | "create_page" | "append_to_page" | "summarize" | "analyze" | "extract_insights" | "custom_action_name" | "send" | "search_web" | "get_repos" | "get_issues" | "create_issue" | "upload_any" | "upload_csv" | "upload_pdf" | "upload_txt",
       "label": "Human readable label",
       "params": {}
     }
@@ -82,6 +86,14 @@ Node Types and Actions:
   * get_repos (params: {username?, url?}) - defaults to HoneyPaptan if no username/URL
   * get_issues (params: {}) - repository will be provided by user configuration
   * create_issue (params: {title?}) - repository will be provided by user configuration
+- "file_upload" - Upload any file type (CSV, PDF, TXT)
+  Actions: upload_any
+- "csv_upload" - Upload CSV files specifically
+  Actions: upload_csv
+- "pdf_upload" - Upload PDF files specifically
+  Actions: upload_pdf
+- "txt_upload" - Upload text files specifically
+  Actions: upload_txt
 
 Rules:
 - Use "tavily" or "web_search" when user mentions searching the web, finding current information, or real-time data
@@ -92,6 +104,14 @@ Rules:
 - Use "notion_create" when user wants to CREATE or SAVE data back to Notion (will use default database)
 - Use "notion" only for READING/FETCHING Notion data
 - Use "llm" for any AI processing, analysis, or transformation
+- Use file upload nodes when user mentions uploading files:
+  * "csv_upload" when user specifically mentions "CSV", "spreadsheet", "comma-separated", or "data file"
+  * "pdf_upload" when user specifically mentions "PDF", "document", or "PDF file"
+  * "txt_upload" when user specifically mentions "text file", "TXT", or "plain text"
+  * "file_upload" when user mentions "upload file" without specifying type, or mentions multiple file types
+  * Examples: "upload my CSV data", "process this PDF", "analyze my text file", "upload a file"
+- When inserting a node AFTER another, REWIRE EDGES: remove previous targets of the source and connect source → new_node → former_target(s) unless user says "in parallel".
+- Never leave stray edges from an upload node to unrelated existing nodes (e.g., MCQ). Connect only to the explicitly mentioned next node.
 - Generate descriptive labels for each node
 - For "notion_create" nodes, the system will automatically use the user's configured default database
 
@@ -118,12 +138,17 @@ If NO parallel keywords: Create sequential edges (0→1→2)
 
 User command: ${input}
 
-Return ONLY the JSON, no explanations.`;
+Return ONLY the JSON, or the sentinel __OFF_TOPIC__ with no extra text.`;
 
     const { text } = await generateText({
       model: cerebras('llama-4-scout-17b-16e-instruct'),
       prompt: prompt,
     });
+
+    // Off-topic sentinel handling
+    if (text.includes('__OFF_TOPIC__')) {
+      throw new Error('I can help build workflows. Try: "Upload a file and gather information" or "Add a gather information step after upload".');
+    }
 
     // Extract JSON from response
     const jsonMatch = text.match(/\{[\s\S]*\}/);

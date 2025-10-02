@@ -155,6 +155,32 @@ export default function Home() {
       setParseError('No meaningful voice input detected. Please speak clearly and try again.');
       return;
     }
+
+    // Off-topic guard: respond gracefully to chit-chat or unrelated input
+    const offTopicPatterns = [
+      /how\s+are\s+you/i,
+      /what'?s\s+up/i,
+      /hello|hi|hey\b/i,
+      /good\s+(morning|evening|night)/i,
+      /tell\s+me\s+a\s+joke/i,
+      /who\s+are\s+you/i,
+      /your\s+name/i,
+      /weather|temperature/i,
+    ];
+    // If the text clearly contains workflow intent, do NOT treat as off-topic
+    const intentPatterns = [
+      /upload|add|create|summarize|analyze|extract|email|send|fetch|search|generate|gather/i,
+      /node|step|workflow/i,
+      /after|before|in\s+parallel|then/i,
+    ];
+    const hasIntent = intentPatterns.some((re) => re.test(trimmedText));
+    if (!hasIntent && offTopicPatterns.some((re) => re.test(trimmedText))) {
+      setExecutionLogs((prev) => [
+        ...prev,
+        { nodeId: 'system', type: 'info', message: '👋 I can build and edit automation workflows. Try saying: "Upload a CSV and summarize it", or "Add a gather information step after file upload".', timestamp: Date.now() },
+      ]);
+      return; // Do not create or edit workflows on off-topic input
+    }
     
       if (isEditMode && workflow) {
       // Edit existing workflow
@@ -656,7 +682,7 @@ export default function Home() {
     const updatedNodes = workflow.nodes.map(node => {
       if (node.id === nodeId) {
         // For file upload nodes, store file content in the node structure
-        if (node.type === 'file_upload' && params.fileContent) {
+        if (['file_upload', 'csv_upload', 'pdf_upload', 'txt_upload'].includes(node.type) && params.fileContent) {
           return {
             ...node,
             params,
@@ -683,8 +709,17 @@ export default function Home() {
 
   // Reset workflow
   const handleReset = () => {
+    // Keep the current workflow container but clear nodes and edges so we stay on the canvas
+    if (workflow) {
+      setWorkflow({
+        ...workflow,
+        nodes: [],
+        edges: [],
+      });
+    }
+
+    // Clear UI/exec states
     setTranscribedText('');
-    setWorkflow(null);
     setParseError(null);
     setExecutionLogs([]);
     setActiveNodeIds([]);
@@ -692,6 +727,7 @@ export default function Home() {
     setIsExecuting(false);
     setExecutionStartTime(null);
     setIsEditMode(false);
+    setSelectedNodeForConfig(null);
   };
 
   // Toggle edit mode

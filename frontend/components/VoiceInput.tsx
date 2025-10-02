@@ -20,6 +20,8 @@ export function VoiceInput({ onTranscribed, isEditMode = false, autoStart = fals
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const stopTimerRef = useRef<number | null>(null);
+  const MAX_DURATION_MS = 30_000; // Auto-stop after 30s to avoid overly long clips
 
   // Auto-start recording when requested (e.g., from Voice Edit quick action)
   useEffect(() => {
@@ -57,6 +59,14 @@ export function VoiceInput({ onTranscribed, isEditMode = false, autoStart = fals
       mediaRecorderRef.current = mediaRecorder;
       setIsRecording(true);
       
+      // Auto-stop after MAX_DURATION_MS
+      stopTimerRef.current = window.setTimeout(() => {
+        if (mediaRecorderRef.current && isRecording) {
+          try { mediaRecorderRef.current.stop(); } catch {}
+          setIsRecording(false);
+        }
+      }, MAX_DURATION_MS);
+      
       console.log('Recording started');
     } catch (err: any) {
       console.error('Error starting recording:', err);
@@ -68,6 +78,10 @@ export function VoiceInput({ onTranscribed, isEditMode = false, autoStart = fals
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+      if (stopTimerRef.current) {
+        clearTimeout(stopTimerRef.current);
+        stopTimerRef.current = null;
+      }
       console.log('Recording stopped');
     }
   };
@@ -84,6 +98,8 @@ export function VoiceInput({ onTranscribed, isEditMode = false, autoStart = fals
 
       const response = await fetch('/api/transcribe', {
         method: 'POST',
+        // A tiny domain hint header the server could use in future to adjust settings
+        headers: { 'x-domain-hint': 'workflow_orchestrator' },
         body: formData,
       });
 

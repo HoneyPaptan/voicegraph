@@ -173,7 +173,7 @@ async function processTXTFile(file: File): Promise<string> {
 /**
  * Validate file before upload
  */
-export function validateFile(file: File): { valid: boolean; error?: string } {
+export function validateFile(file: File, allowedTypes?: string[]): { valid: boolean; error?: string } {
   // Check file size
   const maxSize = 10 * 1024 * 1024; // 10MB
   if (file.size > maxSize) {
@@ -184,7 +184,7 @@ export function validateFile(file: File): { valid: boolean; error?: string } {
   }
 
   // Check file type
-  const allowedTypes = [
+  const defaultAllowedTypes = [
     'text/csv',
     'application/csv',
     'text/plain',
@@ -192,12 +192,14 @@ export function validateFile(file: File): { valid: boolean; error?: string } {
     'text/txt',
   ];
   
-  const isValidType = allowedTypes.includes(file.type) || file.name.match(/\.(csv|txt|pdf)$/i);
+  const typesToCheck = allowedTypes || defaultAllowedTypes;
+  const isValidType = typesToCheck.includes(file.type) || file.name.match(new RegExp(`\\.(${typesToCheck.map(t => t.split('/')[1] || t).join('|')})$`, 'i'));
   
   if (!isValidType) {
+    const typeNames = allowedTypes ? allowedTypes.map(t => t.split('/')[1]?.toUpperCase() || t.toUpperCase()).join(', ') : 'CSV, PDF, or TXT';
     return {
       valid: false,
-      error: 'Unsupported file type. Please upload CSV, PDF, or TXT files only.',
+      error: `Unsupported file type. Please upload ${typeNames} files only.`,
     };
   }
 

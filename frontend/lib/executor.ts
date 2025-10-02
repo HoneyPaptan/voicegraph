@@ -48,6 +48,9 @@ export async function executeNode(
         break;
 
       case 'file_upload':
+      case 'csv_upload':
+      case 'pdf_upload':
+      case 'txt_upload':
         output = await executeFileUploadNode(node, context);
         break;
 
