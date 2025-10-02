@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
-import { Database, Sparkles, Mail, Search, Github, FileEdit, X, Plus } from 'lucide-react';
+import { Database, Sparkles, Mail, Search, Github, FileEdit, Upload, X, Plus } from 'lucide-react';
 
 interface NodeLibraryItem {
   type: string;
@@ -67,6 +67,14 @@ const AVAILABLE_NODES: NodeLibraryItem[] = [
     description: 'Get GitHub repository info',
     color: 'from-gray-700 to-gray-800',
     actions: ['get_commits', 'get_repo_info', 'get_pull_requests'],
+  },
+  {
+    type: 'file_upload',
+    label: 'File Upload',
+    icon: <Upload className="w-5 h-5" />,
+    description: 'Upload and process files',
+    color: 'from-indigo-500 to-indigo-600',
+    actions: ['upload_csv', 'upload_pdf', 'upload_txt'],
   },
 ];
 

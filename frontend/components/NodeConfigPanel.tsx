@@ -7,6 +7,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { X, Save, Settings } from 'lucide-react';
 import { WorkflowNode } from '@/lib/types';
+import { FileUploadNode } from './FileUploadNode';
 
 interface NodeConfigPanelProps {
   node: WorkflowNode | null;
@@ -137,13 +138,30 @@ export function NodeConfigPanel({ node, onClose, onSave }: NodeConfigPanelProps)
       }
     });
 
+    // Special validation for file upload nodes
+    if (node.type === 'file_upload' && !params.fileContent) {
+      newErrors.fileContent = 'Please upload a file before saving';
+    }
+
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
 
-    // Save and close
-    onSave(node.id, params);
+    // For file upload nodes, we need to pass the file content in a special way
+    if (node.type === 'file_upload') {
+      const fileUploadParams = {
+        ...params,
+        // Store file content in the node structure for the executor
+        fileContent: params.fileContent,
+        fileName: params.fileName,
+        fileType: params.fileType,
+      };
+      onSave(node.id, fileUploadParams);
+    } else {
+      onSave(node.id, params);
+    }
+    
     onClose();
   };
 
@@ -173,7 +191,43 @@ export function NodeConfigPanel({ node, onClose, onSave }: NodeConfigPanelProps)
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4">
-          {paramConfig.length === 0 ? (
+          {node.type === 'file_upload' ? (
+            <div className="space-y-4">
+              <div>
+                <Label className="text-sm font-medium text-gray-300 mb-2 block">
+                  Upload File
+                </Label>
+                <FileUploadNode
+                  nodeId={node.id}
+                  onFileUploaded={(nodeId, result) => {
+                    if (result.success) {
+                      // Update the node with file content
+                      const updatedParams = {
+                        ...params,
+                        fileContent: result.text,
+                        fileName: result.metadata?.fileName,
+                        fileType: result.metadata?.fileType,
+                        uploadedFile: result.uploadedFile, // Store file reference
+                      };
+                      setParams(updatedParams);
+                    }
+                  }}
+                  onFileRemoved={(nodeId) => {
+                    const updatedParams = { ...params };
+                    delete updatedParams.fileContent;
+                    delete updatedParams.fileName;
+                    delete updatedParams.fileType;
+                    setParams(updatedParams);
+                  }}
+                  initialFile={node.uploadedFile}
+                  initialContent={node.fileContent}
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  Upload CSV, PDF, or TXT files. The text content will be extracted and passed to downstream nodes.
+                </p>
+              </div>
+            </div>
+          ) : paramConfig.length === 0 ? (
             <div className="text-center py-8 text-gray-400">
               <p className="text-sm">No configuration needed for this node</p>
               <p className="text-xs mt-2">This node will use data from previous steps</p>

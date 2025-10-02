@@ -8,7 +8,8 @@ export type NodeType =
   | 'email' 
   | 'tavily' 
   | 'web_search' 
-  | 'github';
+  | 'github'
+  | 'file_upload';
 
 /**
  * Workflow node definition
@@ -20,6 +21,9 @@ export interface WorkflowNode {
   params?: Record<string, any>;
   label?: string;
   position?: { x: number; y: number };
+  // For file upload nodes
+  uploadedFile?: File;
+  fileContent?: string;
 }
 
 /**
@@ -49,6 +53,8 @@ export interface ExecutionContext {
   notionPageId?: string;
   notionDatabaseId?: string;
   recipientEmail?: string;
+  // For file upload context
+  uploadedFiles?: Record<string, { fileName: string; content: string; metadata: any }>;
   [key: string]: any;
 }
 

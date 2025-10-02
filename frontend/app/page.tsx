@@ -655,6 +655,16 @@ export default function Home() {
     
     const updatedNodes = workflow.nodes.map(node => {
       if (node.id === nodeId) {
+        // For file upload nodes, store file content in the node structure
+        if (node.type === 'file_upload' && params.fileContent) {
+          return {
+            ...node,
+            params,
+            fileContent: params.fileContent,
+            uploadedFile: params.uploadedFile, // Store the file reference if available
+          };
+        }
+        
         return {
           ...node,
           params,

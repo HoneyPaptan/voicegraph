@@ -4,6 +4,7 @@ import { sendEmail } from './tools/email';
 import { generateContent } from './cerebras';
 import { searchWeb, extractWebData } from './tools/tavily';
 import { getGitHubRepos, getGitHubIssues, createGitHubIssue } from './tools/github';
+import { processUploadedFile, FileUploadResult } from './tools/file-upload';
 
 /**
  * Executes a single workflow node
@@ -44,6 +45,10 @@ export async function executeNode(
 
       case 'github':
         output = await executeGitHubNode(node, context);
+        break;
+
+      case 'file_upload':
+        output = await executeFileUploadNode(node, context);
         break;
 
       default:
@@ -359,5 +364,49 @@ async function executeGitHubNode(
   else {
     throw new Error(`Unknown GitHub action: ${action}. Supported actions: get_repos, fetch_repos, get_issues, fetch_issues, create_issue`);
   }
+}
+
+/**
+ * Executes a file upload node
+ * Processes uploaded files and extracts text content
+ */
+async function executeFileUploadNode(
+  node: WorkflowNode,
+  context: ExecutionContext
+): Promise<string> {
+  const { action, params } = node;
+  
+  console.log(`📁 File upload node execution - Action: ${action}`);
+  console.log(`📁 Node data:`, { 
+    hasFileContent: !!node.fileContent, 
+    fileContentLength: node.fileContent?.length,
+    hasUploadedFile: !!node.uploadedFile,
+    params: Object.keys(params)
+  });
+  
+  // Check if file was uploaded during workflow creation
+  if (node.fileContent) {
+    console.log(`📄 Using pre-uploaded file content (${node.fileContent.length} characters)`);
+    
+    // Store in context for downstream nodes
+    if (!context.uploadedFiles) {
+      context.uploadedFiles = {};
+    }
+    context.uploadedFiles[node.id] = {
+      fileName: node.uploadedFile?.name || params.fileName || 'uploaded-file',
+      content: node.fileContent,
+      metadata: {
+        nodeId: node.id,
+        uploadedAt: new Date().toISOString(),
+        fileType: params.fileType,
+        fileSize: node.uploadedFile?.size,
+      }
+    };
+    
+    return node.fileContent;
+  }
+  
+  // If no file content, this might be a configuration error
+  throw new Error('No file uploaded for file upload node. Please upload a file first.');
 }
 

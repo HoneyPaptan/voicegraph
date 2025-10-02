@@ -23,7 +23,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { motion } from 'framer-motion';
 import { WorkflowNode as WFNode, WorkflowEdge } from '@/lib/types';
-import { Database, Sparkles, Mail, Search, Github, FileEdit, Settings } from 'lucide-react';
+import { Database, Sparkles, Mail, Search, Github, FileEdit, Upload, Settings } from 'lucide-react';
 import { analyzeParallelWorkflow, calculateParallelPositions } from '@/lib/parallel-executor';
 
 interface WorkflowCanvasProps {
@@ -60,6 +60,8 @@ function CustomNode({ data, id }: { data: any; id: string }) {
         return <Search className="w-5 h-5" />;
       case 'github':
         return <Github className="w-5 h-5" />;
+      case 'file_upload':
+        return <Upload className="w-5 h-5" />;
       default:
         return null;
     }
@@ -80,6 +82,8 @@ function CustomNode({ data, id }: { data: any; id: string }) {
         return 'from-orange-500 to-orange-600';
       case 'github':
         return 'from-gray-700 to-gray-800';
+      case 'file_upload':
+        return 'from-indigo-500 to-indigo-600';
       default:
         return 'from-gray-500 to-gray-600';
     }
