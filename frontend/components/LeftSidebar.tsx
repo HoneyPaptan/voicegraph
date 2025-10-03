@@ -42,24 +42,24 @@ export function LeftSidebar({
           variant="default"
           size="icon"
           aria-label="Tools Menu"
-          className="fixed top-6 left-6 bg-blue-600 hover:bg-blue-700 shadow-2xl z-50 font-semibold border-2 border-blue-500 pointer-events-auto"
+          className="fixed top-6 left-6 bg-white hover:bg-white/90 text-black shadow-2xl z-50 font-semibold border border-white/20 pointer-events-auto"
         >
           <Menu className="w-5 h-5" />
         </Button>
       </SheetTrigger>
       
-      <SheetContent side="left" className="w-96 bg-gray-900/95 border-gray-700 backdrop-blur-lg px-4">
+      <SheetContent side="left" className="w-96 bg-black/90 border-white/15 backdrop-blur-lg px-4">
         <SheetHeader className="pb-4">
-          <SheetTitle className="text-left">Workflow Tools</SheetTitle>
+          <SheetTitle className="text-left text-white">Workflow Tools</SheetTitle>
         </SheetHeader>
         
         {/* Tab Navigation */}
-        <div className="flex gap-1 mb-6 bg-gray-800/50 p-1 rounded-lg">
+        <div className="flex gap-1 mb-6 bg-black/60 p-1 rounded-lg border border-white/10">
           <Button
             variant={activeTab === 'templates' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setActiveTab('templates')}
-            className="flex-1 gap-1"
+            className={`flex-1 gap-1 ${activeTab === 'templates' ? 'bg-white text-black' : 'text-white hover:bg-white/10'}`}
           >
             <BookOpen className="w-3 h-3" />
             Templates
@@ -70,50 +70,47 @@ export function LeftSidebar({
         <div className="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
           {activeTab === 'templates' && (
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold mb-3">Advanced Templates</h3>
+              <h3 className="text-sm font-semibold mb-3 text-white">Advanced Templates</h3>
               
               <Button
                 variant="outline"
-                className="w-full justify-start text-left h-auto py-3 px-3 bg-gray-800/50 hover:bg-green-800/30 border-gray-600 hover:border-green-600 transition-all group"
+                className="w-full justify-start text-left h-auto py-3 px-3 bg-black/40 hover:bg-black/60 border-white/20 text-white transition-all"
                 onClick={() => {
                   onLoadExample('Get recent commits from my GitHub repository, analyze the code changes, and create a Notion page with development summary');
                   setIsOpen(false);
                 }}
               >
                 <div>
-                  <div className="font-medium text-xs text-green-300 group-hover:text-green-200">Dev Progress Tracker</div>
-                  <div className="text-[10px] text-gray-400">GitHub → Analyze → Notion</div>
-                  <div className="text-[9px] text-green-600 mt-0.5">🚀 Development workflow</div>
+                  <div className="font-medium text-xs">Dev Progress Tracker</div>
+                  <div className="text-[10px] text-white/60">GitHub → Analyze → Notion</div>
                 </div>
               </Button>
 
               <Button
                 variant="outline"
-                className="w-full justify-start text-left h-auto py-3 px-3 bg-gray-800/50 hover:bg-blue-800/30 border-gray-600 hover:border-blue-600 transition-all group"
+                className="w-full justify-start text-left h-auto py-3 px-3 bg-black/40 hover:bg-black/60 border-white/20 text-white transition-all"
                 onClick={() => {
                   onLoadExample('Search for latest AI news, analyze trends and innovations, then email me market insights report');
                   setIsOpen(false);
                 }}
               >
                 <div>
-                  <div className="font-medium text-xs text-blue-300 group-hover:text-blue-200">Market Intelligence</div>
-                  <div className="text-[10px] text-gray-400">Web Search → Analysis → Email</div>
-                  <div className="text-[9px] text-blue-600 mt-0.5">📊 Research workflow</div>
+                  <div className="font-medium text-xs">Market Intelligence</div>
+                  <div className="text-[10px] text-white/60">Web Search → Analysis → Email</div>
                 </div>
               </Button>
 
               <Button
                 variant="outline"
-                className="w-full justify-start text-left h-auto py-3 px-3 bg-gray-800/50 hover:bg-orange-800/30 border-gray-600 hover:border-orange-600 transition-all group"
+                className="w-full justify-start text-left h-auto py-3 px-3 bg-black/40 hover:bg-black/60 border-white/20 text-white transition-all"
                 onClick={() => {
                   onLoadExample('Get my Notion project tasks, search for best practices, analyze both together, and email me an action plan with recommendations');
                   setIsOpen(false);
                 }}
               >
                 <div>
-                  <div className="font-medium text-xs text-orange-300 group-hover:text-orange-200">Smart Action Planner</div>
-                  <div className="text-[10px] text-gray-400">Multi-source → AI Planning → Email</div>
-                  <div className="text-[9px] text-orange-600 mt-0.5">⚡ Productivity workflow</div>
+                  <div className="font-medium text-xs">Smart Action Planner</div>
+                  <div className="text-[10px] text-white/60">Multi-source → AI Planning → Email</div>
                 </div>
               </Button>
             </div>

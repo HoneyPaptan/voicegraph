@@ -124,10 +124,10 @@ export function VoiceInput({ onTranscribed, isEditMode = false, autoStart = fals
     <div className="flex flex-col items-center gap-3 w-full">
       {isEditMode && (
         <div className="text-center w-full">
-          <span className="inline-block px-2 py-1 bg-blue-500/20 border border-blue-500 rounded-full text-blue-300 text-xs font-medium">
+          <span className="inline-block px-2 py-1 bg-white/10 border border-white/20 rounded-full text-white/80 text-xs font-medium">
             🎤 Edit Mode
           </span>
-          <p className="text-[10px] text-gray-400 mt-1">
+          <p className="text-[10px] text-white/70 mt-1">
             Speak to add, remove, or modify nodes
           </p>
         </div>
@@ -138,7 +138,7 @@ export function VoiceInput({ onTranscribed, isEditMode = false, autoStart = fals
           <Button
             onClick={startRecording}
             size="sm"
-            className={`gap-2 w-full ${isEditMode ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+            className={`gap-2 w-full bg-white hover:bg-white/90 text-black`}
           >
             <Mic className="w-4 h-4" />
             {isEditMode ? 'Record Edit' : 'Start Recording'}
@@ -149,8 +149,7 @@ export function VoiceInput({ onTranscribed, isEditMode = false, autoStart = fals
           <Button
             onClick={stopRecording}
             size="sm"
-            variant="destructive"
-            className="gap-2 animate-pulse w-full"
+            className="gap-2 w-full bg-white text-black hover:bg-white/90"
           >
             <Square className="w-4 h-4" />
             Stop Recording
@@ -161,7 +160,7 @@ export function VoiceInput({ onTranscribed, isEditMode = false, autoStart = fals
           <Button
             size="sm"
             disabled
-            className="gap-2 w-full"
+            className="gap-2 w-full bg-white/10 text-white"
           >
             <Loader2 className="w-4 h-4 animate-spin" />
             Transcribing...

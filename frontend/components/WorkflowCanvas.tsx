@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import ReactFlow, {
   Background,
+  BackgroundVariant,
   Controls,
   Node,
   Edge,
@@ -78,30 +79,30 @@ function CustomNode({ data, id }: { data: any; id: string }) {
   const getColor = () => {
     switch (data.type) {
       case 'notion':
-        return 'from-blue-500 to-blue-600';
+        return 'from-gray-700 to-gray-800';
       case 'notion_create':
-        return 'from-blue-600 to-indigo-600';
+        return 'from-gray-600 to-gray-700';
       case 'llm':
-        return 'from-blue-500 to-blue-600';
+        return 'from-gray-500 to-gray-600';
       case 'email':
-        return 'from-green-500 to-green-600';
+        return 'from-gray-800 to-gray-900';
       case 'tavily':
       case 'web_search':
-        return 'from-orange-500 to-orange-600';
+        return 'from-gray-600 to-gray-800';
       case 'github':
-        return 'from-gray-700 to-gray-800';
+        return 'from-gray-700 to-gray-900';
       case 'file_upload':
-        return 'from-indigo-500 to-indigo-600';
+        return 'from-gray-600 to-gray-700';
       case 'csv_upload':
-        return 'from-green-500 to-green-600';
+        return 'from-gray-700 to-gray-800';
       case 'pdf_upload':
-        return 'from-red-500 to-red-600';
+        return 'from-gray-800 to-gray-900';
       case 'txt_upload':
-        return 'from-blue-500 to-blue-600';
+        return 'from-gray-500 to-gray-700';
       case 'prompt':
-        return 'from-fuchsia-500 to-pink-600';
+        return 'from-gray-600 to-gray-700';
       default:
-        return 'from-gray-500 to-gray-600';
+        return 'from-gray-600 to-gray-700';
     }
   };
 
@@ -119,10 +120,10 @@ function CustomNode({ data, id }: { data: any; id: string }) {
       className={`
         px-4 py-3 rounded-lg shadow-lg bg-gradient-to-br ${getColor()}
         text-white min-w-[180px] border-2 relative group
-        ${isActive ? 'border-yellow-400 ring-4 ring-yellow-400/50 animate-pulse' : ''}
-        ${isError ? 'border-red-500 ring-4 ring-red-500/50' : ''}
+        ${isActive ? 'border-white ring-4 ring-white/40 animate-pulse' : ''}
+        ${isError ? 'border-white ring-4 ring-white/60' : ''}
         ${!isActive && !isError ? 'border-white/20' : ''}
-        ${isInteractive ? 'hover:ring-2 hover:ring-white/50 cursor-move' : ''}
+        ${isInteractive ? 'hover:ring-2 hover:ring-white/40 cursor-move' : ''}
       `}
     >
       
@@ -133,7 +134,7 @@ function CustomNode({ data, id }: { data: any; id: string }) {
             e.stopPropagation();
             data.onConfigure(id);
           }}
-          className="absolute -top-2 -right-2 bg-blue-500 hover:bg-blue-600 text-white rounded-full w-7 h-7 flex items-center justify-center shadow-lg transition-all opacity-0 group-hover:opacity-100 z-10"
+          className="absolute -top-2 -right-2 bg-white/20 hover:bg-white/30 text-white rounded-full w-7 h-7 flex items-center justify-center shadow-lg transition-all opacity-0 group-hover:opacity-100 z-10 border border-white/30"
           title="Configure node"
         >
           <Settings className="w-3.5 h-3.5" />
@@ -147,7 +148,7 @@ function CustomNode({ data, id }: { data: any; id: string }) {
             e.stopPropagation();
             data.onDelete(id);
           }}
-          className="absolute -top-2 -left-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg transition-colors opacity-0 group-hover:opacity-100 z-10"
+          className="absolute -top-2 -left-2 bg-white text-black rounded-full w-6 h-6 flex items-center justify-center shadow-lg transition-colors opacity-0 group-hover:opacity-100 z-10 border border-white"
           title="Delete node"
         >
           <span className="text-sm font-bold">×</span>
@@ -212,7 +213,7 @@ function RemovableEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition,
 
   return (
     <>
-      <BaseEdge id={id} path={edgePath} style={{ stroke: '#8b5cf6', strokeWidth: 3 }} markerEnd={markerEnd} />
+      <BaseEdge id={id} path={edgePath} style={{ stroke: '#ffffff66', strokeWidth: 3 }} markerEnd={markerEnd} />
       {data?.isInteractive && (
         <EdgeLabelRenderer>
           <div
@@ -229,7 +230,7 @@ function RemovableEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition,
                 data?.onDeleteEdge?.(id);
               }}
               title="Remove connection"
-              className="w-5 h-5 rounded-full bg-red-600 text-white text-xs leading-none flex items-center justify-center shadow-md opacity-80 hover:opacity-100"
+              className="w-5 h-5 rounded-full bg-white text-black text-xs leading-none flex items-center justify-center shadow-md border border-white"
             >
               ×
             </button>
@@ -337,10 +338,10 @@ export function WorkflowCanvas({
       ...normalized,
       type: 'removable',
       animated: true,
-      style: { stroke: '#8b5cf6', strokeWidth: 3 },
+      style: { stroke: '#ffffff66', strokeWidth: 3 },
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        color: '#8b5cf6',
+        color: '#ffffffcc',
       },
     }, eds));
     
@@ -418,12 +419,12 @@ export function WorkflowCanvas({
       type: 'removable',
       animated: true,
       style: { 
-        stroke: '#8b5cf6',
+        stroke: '#ffffff66',
         strokeWidth: 3,
       },
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        color: '#8b5cf6',
+        color: '#ffffffcc',
       },
       data: {
         isInteractive,
@@ -448,14 +449,14 @@ export function WorkflowCanvas({
   // NOW check for empty state after all hooks
   if (nodes.length === 0) {
     return (
-      <div className="h-full w-full bg-gray-950">
+      <div className="h-full w-full bg-transparent">
         {/* Clean empty state - no overlay text */}
       </div>
     );
   }
 
   return (
-    <div className="h-full w-full bg-gray-950">
+    <div className="h-full w-full bg-transparent">
       <ReactFlow
         nodes={rfNodes}
         edges={rfEdges}
@@ -478,19 +479,25 @@ export function WorkflowCanvas({
         proOptions={{ hideAttribution: true }}
         deleteKeyCode="Delete"
         // Connection styling
-        connectionLineStyle={{ stroke: '#8b5cf6', strokeWidth: 3 }}
+        connectionLineStyle={{ stroke: '#ffffff66', strokeWidth: 3 }}
         connectionLineType={ConnectionLineType.SmoothStep}
       >
-        <Background color="#1f2937" gap={20} size={1} />
-        <Controls className="bg-gray-900/90 border-gray-700" />
+        <Background
+          id="grid"
+          variant={BackgroundVariant.Lines}
+          color="#ffffff12"
+          gap={24}
+          lineWidth={1}
+        />
+        <Controls className="bg-black/70 border border-white/10" />
       </ReactFlow>
       
       {/* Connection Instructions Overlay */}
       {allowConnections && rfNodes.length > 1 && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none">
-          <div className="bg-blue-600/90 backdrop-blur-md px-4 py-2 rounded-lg shadow-lg border border-blue-500">
+          <div className="bg-black/70 backdrop-blur-md px-4 py-2 rounded-lg shadow-lg border border-white/10">
             <p className="text-xs text-white font-medium">
-              🔗 Drag from node handles to create connections
+              Drag from node handles to create connections
             </p>
           </div>
         </div>
