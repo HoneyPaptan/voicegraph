@@ -16,15 +16,21 @@ interface TavilyResponse {
   answer?: string;
 }
 
+export interface TavilySearchOptions {
+  maxResults?: number;
+  includeDomains?: string[]; // Prefer results from these domains
+  site?: string; // Shortcut to add `site:domain` into the query
+}
+
 /**
  * Search the web using Tavily API
  * @param query - Search query
- * @param maxResults - Maximum number of results to return (default: 5)
+ * @param options - Optional search tuning options
  * @returns Formatted search results as markdown text
  */
 export async function searchWeb(
   query: string,
-  maxResults: number = 5
+  options: TavilySearchOptions = {}
 ): Promise<{ success: boolean; data?: string; error?: string }> {
   const apiKey = process.env.TAVILY_API_KEY;
 
@@ -43,7 +49,10 @@ export async function searchWeb(
     };
   }
 
-  console.log(`🔍 Tavily Web Search: "${query}"`);
+  // Apply site filter directly to query if provided
+  const finalQuery = options.site ? `${query} site:${options.site}` : query;
+
+  console.log(`🔍 Tavily Web Search: "${finalQuery}"`, options.includeDomains ? `domains:${options.includeDomains.join(',')}` : '');
 
   try {
     const response = await fetch('https://api.tavily.com/search', {
@@ -53,11 +62,12 @@ export async function searchWeb(
       },
       body: JSON.stringify({
         api_key: apiKey,
-        query: query,
-        max_results: maxResults,
+        query: finalQuery,
+        max_results: options.maxResults ?? 5,
         search_depth: 'basic',
         include_answer: true,
         include_raw_content: false,
+        include_domains: options.includeDomains,
       }),
     });
 
@@ -73,30 +83,47 @@ export async function searchWeb(
     const data: TavilyResponse = await response.json();
 
     if (!data.results || data.results.length === 0) {
-      console.log('⚠️ No search results found for query:', query);
+      console.log('⚠️ No search results found for query:', finalQuery);
       return {
         success: true,
-        data: `# Search Results for "${query}"\n\nNo results found. Try a different search query.`,
+        data: `# Search Results for "${finalQuery}"
+
+No results found. Try a different search query.`,
       };
     }
 
     console.log(`✅ Found ${data.results.length} search results`);
 
     // Format results as markdown
-    let formattedResults = `# Search Results for "${query}"\n\n`;
+    let formattedResults = `# Search Results for "${finalQuery}"
+
+`;
 
     if (data.answer) {
-      formattedResults += `## Quick Answer\n${data.answer}\n\n`;
+      formattedResults += `## Quick Answer
+${data.answer}
+
+`;
     }
 
-    formattedResults += `## Top ${data.results.length} Results\n\n`;
+    formattedResults += `## Top ${data.results.length} Results
+
+`;
 
     data.results.forEach((result, index) => {
-      formattedResults += `### ${index + 1}. ${result.title}\n`;
-      formattedResults += `**Source:** ${result.url}\n`;
-      formattedResults += `**Relevance Score:** ${(result.score * 100).toFixed(1)}%\n\n`;
-      formattedResults += `${result.content}\n\n`;
-      formattedResults += `---\n\n`;
+      formattedResults += `### ${index + 1}. ${result.title}
+`;
+      formattedResults += `**Source:** ${result.url}
+`;
+      formattedResults += `**Relevance Score:** ${(result.score * 100).toFixed(1)}%
+
+`;
+      formattedResults += `${result.content}
+
+`;
+      formattedResults += `---
+
+`;
     });
 
     return {
@@ -121,7 +148,7 @@ export async function extractWebData(
 ): Promise<{ success: boolean; data?: string; error?: string }> {
   console.log(`🎯 Extracting web data about "${topic}" using query: "${query}"`);
   
-  const searchResult = await searchWeb(query, 3);
+  const searchResult = await searchWeb(query, { maxResults: 3 });
   
   if (!searchResult.success) {
     return searchResult;
@@ -129,7 +156,9 @@ export async function extractWebData(
 
   return {
     success: true,
-    data: `# Web Data: ${topic}\n\n${searchResult.data}`,
+    data: `# Web Data: ${topic}
+
+${searchResult.data}`,
   };
 }
 

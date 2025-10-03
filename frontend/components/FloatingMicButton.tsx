@@ -102,13 +102,12 @@ export function FloatingMicButton({ onTranscribed }: FloatingMicButtonProps) {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={startRecording}
-            className="relative w-24 h-24 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 hover:from-blue-500 hover:to-blue-700 shadow-2xl flex items-center justify-center transition-all duration-300 group"
+            className="relative w-24 h-24 rounded-full bg-white text-black hover:bg-white/90 border border-white/20 shadow-2xl flex items-center justify-center transition-all duration-300 group"
           >
-            <Mic className="w-10 h-10 text-white" />
-            
+            <Mic className="w-10 h-10" />
             {/* Pulse rings */}
-            <div className="absolute inset-0 rounded-full bg-blue-600 opacity-20 animate-ping"></div>
-            <div className="absolute inset-0 rounded-full bg-blue-600 opacity-10 animate-pulse"></div>
+            <div className="absolute inset-0 rounded-full bg-white opacity-10 animate-ping"></div>
+            <div className="absolute inset-0 rounded-full bg-white opacity-5 animate-pulse"></div>
           </motion.button>
         )}
 
@@ -120,14 +119,13 @@ export function FloatingMicButton({ onTranscribed }: FloatingMicButtonProps) {
             exit={{ scale: 0.8, opacity: 0 }}
             whileTap={{ scale: 0.95 }}
             onClick={stopRecording}
-            className="relative w-24 h-24 rounded-full bg-gradient-to-br from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 shadow-2xl flex items-center justify-center transition-all duration-300"
+            className="relative w-24 h-24 rounded-full bg-black/20 border border-white/30 shadow-2xl flex items-center justify-center transition-all duration-300"
           >
-            <Square className="w-10 h-10 text-white fill-current" />
-            
+            <Square className="w-10 h-10 text-white" />
             {/* Recording indicator pulse */}
-            <div className="absolute inset-0 rounded-full bg-red-600 opacity-30 animate-pulse"></div>
+            <div className="absolute inset-0 rounded-full bg-white opacity-10 animate-pulse"></div>
             <div className="absolute -top-2 -right-2">
-              <div className="flex items-center gap-1 bg-red-600 px-2 py-1 rounded-full">
+              <div className="flex items-center gap-1 bg-white/20 px-2 py-1 rounded-full border border-white/30">
                 <Radio className="w-3 h-3 text-white animate-pulse" />
                 <span className="text-xs text-white font-medium">REC</span>
               </div>
@@ -141,7 +139,7 @@ export function FloatingMicButton({ onTranscribed }: FloatingMicButtonProps) {
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.8, opacity: 0 }}
-            className="relative w-24 h-24 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 shadow-2xl flex items-center justify-center"
+            className="relative w-24 h-24 rounded-full bg-black/20 border border-white/30 shadow-2xl flex items-center justify-center"
           >
             <Loader2 className="w-10 h-10 text-white animate-spin" />
           </motion.div>

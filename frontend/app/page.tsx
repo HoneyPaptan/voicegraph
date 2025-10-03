@@ -750,9 +750,9 @@ export default function Home() {
     : null;
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-gray-950 text-white">
+    <div className={`relative min-h-screen w-full overflow-hidden text-white ${!workflow ? 'noisy-bg' : 'bg-black'}`}>
       {/* Full-Screen Workflow Canvas Background */}
-      <div className="absolute inset-0 w-full h-full">
+      <div className="absolute inset-0 w-full h-full z-[1]">
         <WorkflowCanvas
           nodes={workflow?.nodes || []}
           edges={workflow?.edges || []}
@@ -784,8 +784,8 @@ export default function Home() {
         {/* Inline Nodes Library - show only when a workflow exists */}
         {workflow && (
           <div className="fixed top-1/2 left-6 -translate-y-1/2 pointer-events-auto z-30 w-56 hidden md:block">
-            <Card className="p-3 bg-gray-900/95 border-gray-700 backdrop-blur-md shadow-2xl overflow-y-auto max-h-[70vh]">
-              <div className="text-xs font-semibold mb-2 text-gray-300">Add Nodes</div>
+            <Card className="text-white flex flex-col gap-6 rounded-xl border p-3 bg-neutral-900/90 border-white/15 backdrop-blur-md shadow-2xl overflow-y-auto max-h-[70vh]">
+              <div className="text-xs font-semibold mb-2 text-white/90">Add Nodes</div>
               <NodesLibrary onAddNode={handleAddNode} compact />
             </Card>
           </div>
@@ -796,83 +796,147 @@ export default function Home() {
         {/* Center Floating Mic Button - Only show when NO workflow */}
         {!workflow && (
           <div className="fixed inset-0 flex items-center justify-center pointer-events-auto z-30">
-            <div className="flex flex-col items-center gap-8 max-w-4xl px-6">
-              <FloatingMicButton onTranscribed={handleTranscribed} />
-              
-              {(isParsingWorkflow || isEditingWorkflow) && (
-                <div className="flex items-center gap-3 text-blue-400 bg-gray-900/90 backdrop-blur-md px-6 py-3 rounded-xl border border-blue-600/50 shadow-2xl">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span className="font-medium">Parsing with Cerebras AI...</span>
-                </div>
-              )}
-
-              {transcribedText && !isParsingWorkflow && (
-                <Card className="p-5 bg-gray-900/90 border-gray-700 backdrop-blur-md shadow-2xl w-full">
-                  <h3 className="text-sm font-semibold mb-2 text-gray-300">Transcribed</h3>
-                  <p className="text-gray-400 text-sm leading-relaxed">{transcribedText}</p>
-                </Card>
-              )}
-
-              {parseError && (
-                <Card className="p-5 bg-red-900/90 border-red-700 backdrop-blur-md shadow-2xl w-full">
-                  <h3 className="text-sm font-semibold mb-2 text-red-400">Error</h3>
-                  <p className="text-red-300 text-sm mb-3">{parseError}</p>
+            <div className="flex items-stretch justify-center">
+              {/* Split container */}
+              <div className="bg-black/80 border border-white/10 rounded-xl shadow-2xl w-[960px] max-w-[92vw] h-[420px] overflow-hidden flex">
+                {/* Left: Recording + Start from blank */}
+                <div className="flex flex-col items-center justify-center gap-6 w-1/2 p-6">
+                  <div className="w-full text-center">
+                    <FloatingMicButton onTranscribed={handleTranscribed} />
+                    {(isParsingWorkflow || isEditingWorkflow) && (
+                      <div className="mt-4 inline-flex items-center gap-3 text-white bg-black/60 px-4 py-2 rounded-lg border border-white/15">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span className="font-medium text-sm">Parsing with Cerebras AI…</span>
+                      </div>
+                    )}
+                  </div>
                   <Button
                     variant="outline"
-                    size="default"
-                    className="w-full"
-                    onClick={() => parseWorkflow(transcribedText)}
+                    className="h-10 px-4 bg-black/40 hover:bg-black/60 border-white/20 text-white"
+                    onClick={() => {
+                      setWorkflow({ workflowId: `workflow-${Date.now()}`, nodes: [], edges: [] });
+                    }}
                   >
-                    Retry
+                    Start from blank
                   </Button>
-                </Card>
-              )}
+                </div>
 
-              {/* Quick Templates & Manual Mode - Show if no transcription or error */}
-              {!transcribedText && !parseError && !isParsingWorkflow && (
-                <div className="w-full space-y-6">
-                  {/* Templates Section */}
-                  <div>
-                    <p className="text-center text-gray-400 text-sm mb-3">or quick templates</p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 max-w-3xl mx-auto">
-                      <Button
-                        variant="outline"
-                        className="h-10 px-4 bg-gray-900/50 hover:bg-gray-800/70 border-gray-700 hover:border-green-600 transition-all text-green-300 hover:text-green-200"
-                        onClick={() => loadExample('Get recent commits from my GitHub repository, analyze the code changes, and create a Notion page with development summary')}
-                      >
-                        Dev Progress Tracker
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="h-10 px-4 bg-gray-900/50 hover:bg-gray-800/70 border-gray-700 hover:border-blue-600 transition-all text-blue-300 hover:text-blue-200"
-                        onClick={() => loadExample('Search for latest AI news, analyze trends and innovations, then email me market insights report')}
-                      >
-                        Market Intelligence
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="h-10 px-4 bg-gray-900/50 hover:bg-gray-800/70 border-gray-700 hover:border-orange-600 transition-all text-orange-300 hover:text-orange-200"
-                        onClick={() => loadExample('Get my Notion project tasks, search for best practices, analyze both together, and email me an action plan with recommendations')}
-                      >
-                        Smart Action Planner
-                      </Button>
-                    </div>
-                    <div className="mt-4 flex items-center justify-center">
-                      <Button
-                        variant="outline"
-                        className="h-10 px-4 bg-gray-900/50 hover:bg-gray-800/70 border-gray-700"
-                        onClick={() => {
-                          setWorkflow({ workflowId: `workflow-${Date.now()}`, nodes: [], edges: [] });
-                        }}
-                      >
-                        Start from blank
-                      </Button>
-                    </div>
+                {/* Divider */}
+                <div className="w-px bg-white/15" />
+
+                {/* Right: Templates */}
+                <div className="w-1/2 p-6 flex flex-col">
+                  <div className="mb-3 text-center text-white text-sm">Quick templates</div>
+
+                  {/* Developer */}
+                  <div className="mb-4">
+                    <div className="text-xs uppercase tracking-wide text-white/70 mb-2">Developer</div>
+                    <Button
+                      variant="outline"
+                      className="w-full h-auto text-left bg-black/40 hover:bg-black/60 border-white/20 text-white justify-start p-4"
+                      onClick={() => loadExample('Get recent commits from my GitHub repository, analyze the code changes, and create a Notion page with development summary')}
+                    >
+                      <div>
+                        <div className="font-medium">Dev Progress Tracker</div>
+                        <div className="text-xs text-white/60 mt-1">Analyze recent commits and produce a Notion summary.</div>
+                      </div>
+                    </Button>
                   </div>
 
-                  {/* Manual Mode Option removed to simplify UI */}
+                  {/* Traveler */}
+                  <div className="mb-4">
+                    <div className="text-xs uppercase tracking-wide text-white/70 mb-2">Traveler</div>
+                    <Button
+                      variant="outline"
+                      className="w-full h-auto text-left bg-black/40 hover:bg-black/60 border-white/20 text-white justify-start p-4"
+                      onClick={() => {
+                        const now = Date.now();
+                        const nodes: WorkflowNode[] = [
+                          {
+                            id: 'step-0',
+                            type: 'prompt' as any,
+                            action: 'seed',
+                            label: 'Trip Request',
+                            params: {
+                              text: 'Enter your destination and (optional) dates. Example: Jaipur, 12-16 Oct.'
+                            },
+                            position: { x: 150, y: 150 },
+                          },
+                          {
+                            id: 'step-1',
+                            type: 'tavily' as any,
+                            action: 'search',
+                            label: 'Find Routes',
+                            params: {
+                              query: 'fastest and cheapest routes to {input} flights trains buses with booking urls',
+                              maxResults: 5,
+                            },
+                            position: { x: 450, y: 120 },
+                          },
+                          {
+                            id: 'step-2',
+                            type: 'tavily' as any,
+                            action: 'search',
+                            label: 'Find Hotels',
+                            params: {
+                              query: 'best hotels near {input} city center budget friendly 3-4 star with direct booking urls',
+                              maxResults: 5,
+                              includeDomains: ['booking.com','hotels.com','tripadvisor.com'],
+                            },
+                            position: { x: 450, y: 220 },
+                          },
+                          {
+                            id: 'step-3',
+                            type: 'llm' as any,
+                            action: 'summarize',
+                            label: 'Summarize Itinerary',
+                            params: {
+                              prompt: 'Create a trip plan that strictly uses the provided destination and dates from the input; never assume a different city. Include: 1) Fastest route with Google Maps or booking URL; 2) Cheapest viable route with Google Maps or booking URL; 3) A table of 5 hotels (Name, Area, Price range, Direct URL); 4) Short day-by-day outline. If info is missing, say “Not found” instead of assuming.'
+                            },
+                            position: { x: 750, y: 170 },
+                          },
+                          {
+                            id: 'step-4',
+                            type: 'email' as any,
+                            action: 'send',
+                            label: 'Email Plan',
+                            params: { subject: 'Your Trip Plan' },
+                            position: { x: 1050, y: 170 },
+                          },
+                        ];
+                        const edges = [
+                          { id: 'edge-0', source: 'step-0', target: 'step-1' },
+                          { id: 'edge-1', source: 'step-1', target: 'step-3' },
+                          { id: 'edge-2', source: 'step-0', target: 'step-2' },
+                          { id: 'edge-3', source: 'step-2', target: 'step-3' },
+                          { id: 'edge-4', source: 'step-3', target: 'step-4' },
+                        ];
+                        setWorkflow({ workflowId: `workflow-${now}`, nodes, edges });
+                      }}
+                    >
+                      <div>
+                        <div className="font-medium">Trip Planner</div>
+                        <div className="text-xs text-white/60 mt-1">Find routes & hotels for your destination and email a concise plan.</div>
+                      </div>
+                    </Button>
+                  </div>
+
+                  {/* Researcher */}
+                  <div className="mb-2">
+                    <div className="text-xs uppercase tracking-wide text-white/70 mb-2">Researcher</div>
+                    <Button
+                      variant="outline"
+                      className="w-full h-auto text-left bg-black/40 hover:bg-black/60 border-white/20 text-white justify-start p-4"
+                      onClick={() => loadExample('Search for latest AI news, analyze trends and innovations, then email me market insights report')}
+                    >
+                      <div>
+                        <div className="font-medium">Market Intelligence</div>
+                        <div className="text-xs text-white/60 mt-1">Search news, analyze trends, and email a quick insight report.</div>
+                      </div>
+                    </Button>
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         )}
@@ -893,19 +957,19 @@ export default function Home() {
         <div className="absolute top-6 right-6 w-80 space-y-3 pointer-events-auto max-h-[calc(100vh-120px)] overflow-y-auto pb-20">
           {/* Transcribed Text Card - Compact */}
           {transcribedText && (
-            <Card className="p-3 bg-gray-900/90 border-gray-700 backdrop-blur-md shadow-2xl">
-              <h2 className="text-xs font-semibold mb-1 text-gray-300">Transcribed Text</h2>
-              <p className="text-gray-400 text-[10px] leading-relaxed line-clamp-3">{transcribedText}</p>
+            <Card className="p-3 bg-black/80 border-white/20 backdrop-blur-md shadow-2xl text-white">
+              <h2 className="text-xs font-semibold mb-1 text-white/80">Transcribed Text</h2>
+              <p className="text-white/80 text-sm leading-relaxed line-clamp-5">{transcribedText}</p>
             </Card>
           )}
 
           {/* Execution Logs - Compact */}
           {executionLogs.length > 0 && (
-            <Card className="p-3 bg-gray-900/90 border-gray-700 backdrop-blur-md shadow-2xl">
+            <Card className="p-3 bg-black/80 border-white/20 backdrop-blur-md shadow-2xl text-white">
               <div className="flex items-center justify-between mb-2">
-                <h2 className="text-xs font-semibold text-gray-300">Execution Logs</h2>
+                <h2 className="text-xs font-semibold text-white/80">Execution Logs</h2>
                 {executionTime && !isExecuting && (
-                  <span className="text-[10px] text-green-400 font-mono">
+                  <span className="text-[10px] text-white/70 font-mono">
                     {executionTime}s
                   </span>
                 )}
@@ -934,32 +998,32 @@ export default function Home() {
         {/* Top Center - Compact Workflow Controls */}
         {workflow && (
           <div className="fixed top-3 left-1/2 -translate-x-1/2 pointer-events-auto z-40 w-auto">
-            <Card className="px-3 py-2 bg-gray-900/95 border border-gray-700 backdrop-blur-lg shadow-2xl rounded-xl">
+            <Card className="px-3 py-2 bg-black/80 border border-white/20 backdrop-blur-lg shadow-2xl rounded-xl text-white">
               <div className="flex items-center gap-2">
                 {/* Run Workflow Button - Primary Action */}
                 {!isExecuting ? (
                   <Button
                     onClick={handleRunWorkflow}
                     size="sm"
-                    className="gap-1 bg-green-600 hover:bg-green-700 font-medium px-3 text-xs"
+                    className="gap-1 bg-white hover:bg-white/90 text-black font-medium px-3 text-xs"
                     disabled={isEditMode}
                   >
                     <Play className="w-3 h-3" />
                     Run
                   </Button>
                 ) : (
-                  <div className="flex items-center gap-1 px-2 py-1 bg-blue-600/20 rounded border border-blue-600">
-                    <Loader2 className="w-3 h-3 animate-spin text-blue-400" />
-                    <span className="text-xs text-blue-400 font-medium">Executing</span>
+                  <div className="flex items-center gap-1 px-2 py-1 bg-white/10 rounded border border-white/30">
+                    <Loader2 className="w-3 h-3 animate-spin text-white" />
+                    <span className="text-xs text-white/80 font-medium">Executing</span>
                   </div>
                 )}
 
-                <div className="h-6 w-px bg-gray-600"></div>
+                <div className="h-6 w-px bg-white/20"></div>
                 
                 <Button
                   onClick={() => setShowVoiceOverlay(true)}
                   size="sm"
-                  className={`gap-1 text-xs px-2 bg-blue-600 hover:bg-blue-700`}
+                  className={`gap-1 text-xs px-2 bg-white hover:bg-white/90 text-black`}
                 >
                   <Mic className="w-3 h-3" />
                   Voice Edit
@@ -967,16 +1031,16 @@ export default function Home() {
 
                 {/* Manual Mode removed - editing is always enabled */}
 
-                <div className="h-6 w-px bg-gray-600"></div>
+                <div className="h-6 w-px bg-white/20"></div>
 
                 {/* Background Execution Toggle - Compact */}
                 <div className="flex items-center gap-1">
-                  <Zap className={`w-3 h-3 ${useBackgroundExecution ? 'text-yellow-400' : 'text-gray-500'}`} />
+                  <Zap className={`w-3 h-3 ${useBackgroundExecution ? 'text-white' : 'text-white/40'}`} />
                   <Button
                     size="sm"
                     variant={useBackgroundExecution ? "default" : "outline"}
                     onClick={() => setUseBackgroundExecution(!useBackgroundExecution)}
-                    className={`h-5 text-[10px] px-1.5 ${useBackgroundExecution ? 'bg-yellow-600 hover:bg-yellow-700' : ''}`}
+                    className={`h-5 text-[10px] px-1.5 ${useBackgroundExecution ? 'bg-white text-black hover:bg-white/90' : 'border-white/30 text-white hover:bg-white/10'}`}
                   >
                     {useBackgroundExecution ? 'BG' : 'BG'}
                   </Button>
@@ -991,13 +1055,14 @@ export default function Home() {
       {/* Voice Edit Overlay - top-level to ensure clickability */}
       {showVoiceOverlay && (
         <div className="fixed inset-0 flex items-center justify-center z-[100]">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowVoiceOverlay(false)}></div>
-          <Card className="relative z-[101] p-4 bg-gray-900/95 border-gray-700 w-[320px] pointer-events-auto">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-sm font-semibold text-gray-200">Voice Edit</div>
-              <Button size="sm" variant="ghost" onClick={() => setShowVoiceOverlay(false)}>Close</Button>
+          <div className="absolute inset-0 bg-black/70" onClick={() => setShowVoiceOverlay(false)}></div>
+          <Card className="relative z-[101] p-5 bg-black border border-white/15 text-white w-[420px] rounded-2xl shadow-2xl pointer-events-auto">
+            <div className="flex items-center justify-between">
+              <div className="text-base font-semibold">Voice Edit</div>
+              <Button size="sm" variant="ghost" className="text-white hover:bg-white/10" onClick={() => setShowVoiceOverlay(false)}>Close</Button>
             </div>
-            <div className="text-[11px] text-gray-400 mb-2">Speak your edit. Recording starts immediately.</div>
+            <div className="h-px bg-white/10 my-3" />
+            <div className="text-xs text-white/70 mb-3">Speak your edit. Recording starts immediately.</div>
             <div>
               <VoiceInput onTranscribed={async (text) => {
                 try {
