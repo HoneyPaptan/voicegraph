@@ -59,6 +59,8 @@ export interface ExecutionContext {
   recipientEmail?: string;
   // For file upload context
   uploadedFiles?: Record<string, { fileName: string; content: string; metadata: any }>;
+  // Internal: store prompts used by each LLM node for metrics estimation
+  __promptByNodeId?: Record<string, string>;
   [key: string]: any;
 }
 
@@ -70,6 +72,14 @@ export interface ExecutionLog {
   type: 'info' | 'success' | 'error' | 'progress';
   message: string;
   timestamp: number;
+  // Optional metrics for LLM or step accounting
+  metrics?: {
+    promptChars?: number;
+    outputChars?: number;
+    inputTokens?: number;
+    outputTokens?: number;
+    costUSD?: number;
+  };
 }
 
 /**

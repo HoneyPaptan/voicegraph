@@ -81,6 +81,13 @@ export async function searchWeb(
     }
 
     const data: TavilyResponse = await response.json();
+    try {
+      console.log('🔎 Tavily meta:', {
+        status: response.status,
+        ok: response.ok,
+        rateLimitRemaining: response.headers.get('x-ratelimit-remaining'),
+      });
+    } catch (e) {}
 
     if (!data.results || data.results.length === 0) {
       console.log('⚠️ No search results found for query:', finalQuery);

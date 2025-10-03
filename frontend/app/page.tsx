@@ -7,6 +7,7 @@ import { FloatingMicButton } from '@/components/FloatingMicButton';
 import { VoiceInput } from '@/components/VoiceInput';
 import { WorkflowCanvas } from '@/components/WorkflowCanvas';
 import { ExecutionLogs } from '@/components/ExecutionLogs';
+import { VisualDebugger } from '@/components/VisualDebugger';
 import { ConfigModal } from '@/components/ConfigModal';
 import { WorkflowHistory } from '@/components/WorkflowHistory';
 import { NodeConfigPanel } from '@/components/NodeConfigPanel';
@@ -35,8 +36,9 @@ export default function Home() {
   const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(null);
   const [manualMode, setManualMode] = useState(false);
   const [selectedNodeForConfig, setSelectedNodeForConfig] = useState<WorkflowNode | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | { text: string; type?: 'success' | 'error' | 'info' } | null>(null);
   const [showVoiceOverlay, setShowVoiceOverlay] = useState(false);
+  const [showDebugger, setShowDebugger] = useState(false);
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 3000);
@@ -465,6 +467,7 @@ export default function Home() {
                 type: data.type,
                 message: data.message,
                 timestamp: data.timestamp,
+                metrics: data.metrics,
               };
               
               setExecutionLogs((prev) => [...prev, log]);
@@ -482,6 +485,7 @@ export default function Home() {
               } else if (data.type === 'success') {
                 // Remove completed node from active list
                 setActiveNodeIds(prev => prev.filter(id => id !== data.nodeId));
+                // if success from LLM with metrics, nothing else
               } else if (data.type === 'error') {
                 // Error occurred - stop everything immediately
                 console.log('Error detected, stopping execution');
@@ -491,6 +495,7 @@ export default function Home() {
                 setExecutionStartTime(null);
                 // Cancel the stream reader so we can run again immediately
                 shouldStopOnError = true;
+                setToast({ text: 'Workflow failed. Open Debugger for details and quick fix.', type: 'error' });
               } else if (data.type === 'complete') {
                 // Workflow completed successfully
                 console.log('Workflow completed successfully');
@@ -507,6 +512,7 @@ export default function Home() {
                   timestamp: Date.now(),
                 };
                 setExecutionLogs((prev) => [...prev, completionLog]);
+                setToast({ text: 'Workflow completed successfully.', type: 'success' });
               }
             } catch (parseError) {
               console.error('Failed to parse SSE data:', parseError);
@@ -945,8 +951,8 @@ export default function Home() {
       {/* Toast */}
       {toast && (
         <div className="fixed top-4 right-1/2 translate-x-1/2 md:right-6 md:translate-x-0 z-50">
-          <Card className="px-4 py-2 bg-red-900/90 border-red-700 shadow-2xl">
-            <span className="text-sm text-red-200">{toast}</span>
+          <Card className={`px-4 py-2 shadow-2xl border ${toast.type === 'error' ? 'bg-black border-white/20' : toast.type === 'success' ? 'bg-black border-white/20' : 'bg-black border-white/20'}`}>
+            <span className={`text-sm ${toast.type === 'error' ? 'text-red-400' : toast.type === 'success' ? 'text-white' : 'text-white/80'}`}>{typeof toast === 'string' ? toast : toast.text}</span>
           </Card>
         </div>
       )}
@@ -962,22 +968,9 @@ export default function Home() {
               <p className="text-white/80 text-sm leading-relaxed line-clamp-5">{transcribedText}</p>
             </Card>
           )}
-
-          {/* Execution Logs - Compact */}
-          {executionLogs.length > 0 && (
-            <Card className="p-3 bg-black/80 border-white/20 backdrop-blur-md shadow-2xl text-white">
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="text-xs font-semibold text-white/80">Execution Logs</h2>
-                {executionTime && !isExecuting && (
-                  <span className="text-[10px] text-white/70 font-mono">
-                    {executionTime}s
-                  </span>
-                )}
-              </div>
-              <div className="max-h-40 overflow-y-auto pr-1">
-                <ExecutionLogs logs={executionLogs} />
-              </div>
-            </Card>
+          {/* Debug button to open Visual Debugger - only when a workflow exists */}
+          {workflow && (
+            <Button onClick={() => setShowDebugger(true)} className="w-full bg-white text-black hover:bg-white/90 text-sm">Open Debugger</Button>
           )}
         </div>
 
@@ -1100,6 +1093,17 @@ export default function Home() {
 
       {/* Workflow History - Already Floating */}
       <WorkflowHistory onRestore={handleRestoreWorkflow} />
+
+      {/* Visual Debugger Modal */}
+      {workflow && (
+        <VisualDebugger
+          open={showDebugger}
+          onClose={() => setShowDebugger(false)}
+          logs={executionLogs as any}
+          transcribedText={transcribedText}
+          workflowId={currentWorkflowId}
+        />
+      )}
     </div>
   );
 }

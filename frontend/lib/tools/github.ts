@@ -171,6 +171,12 @@ export async function getGitHubRepos(
     }
 
     const repos: GitHubRepo[] = await response.json();
+    try {
+      console.log('🐙 GitHub meta:', {
+        status: response.status,
+        ratelimitRemaining: response.headers.get('x-ratelimit-remaining'),
+      });
+    } catch (e) {}
     console.log(`✅ GitHub API returned ${repos.length} repositories`);
 
     if (repos.length === 0) {
@@ -265,6 +271,12 @@ export async function getGitHubIssues(
     }
 
     const issues: GitHubIssue[] = await response.json();
+    try {
+      console.log('🐙 GitHub meta:', {
+        status: response.status,
+        ratelimitRemaining: response.headers.get('x-ratelimit-remaining'),
+      });
+    } catch (e) {}
     console.log(`✅ GitHub API returned ${issues.length} issues`);
 
     if (issues.length === 0) {
