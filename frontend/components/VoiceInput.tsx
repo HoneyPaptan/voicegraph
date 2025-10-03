@@ -138,7 +138,7 @@ export function VoiceInput({ onTranscribed, isEditMode = false, autoStart = fals
           <Button
             onClick={startRecording}
             size="sm"
-            className={`gap-2 w-full bg-white hover:bg-white/90 text-black`}
+            className={`gap-2 w-full bg-black hover:bg-black/80 text-white`}
           >
             <Mic className="w-4 h-4" />
             {isEditMode ? 'Record Edit' : 'Start Recording'}
@@ -149,7 +149,7 @@ export function VoiceInput({ onTranscribed, isEditMode = false, autoStart = fals
           <Button
             onClick={stopRecording}
             size="sm"
-            className="gap-2 w-full bg-white text-black hover:bg-white/90"
+            className="gap-2 w-full bg-red-600 text-white hover:bg-red-700"
           >
             <Square className="w-4 h-4" />
             Stop Recording

@@ -238,7 +238,7 @@ export function VisualDebugger({ open, onClose, logs, transcribedText, workflowI
                 onChange={(e) => setQuestion(e.target.value)}
                 placeholder="Why did my workflow stop?"
               />
-              <Button onClick={runDebugger} disabled={loading} className="bg-white text-black hover:bg-white/90 text-sm">
+              <Button onClick={runDebugger} disabled={loading} className="bg-black text-white hover:bg-black/80 text-sm">
                 {loading ? 'Thinking…' : 'Ask' }
               </Button>
             </div>
