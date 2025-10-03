@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Workflow, ExecutionLog, WorkflowNode } from '@/lib/types';
 import { WorkflowRun } from '@/lib/workflow-history';
-import { Sparkles, Play, RefreshCw, Loader2, Mic, Zap, Link2 } from 'lucide-react';
+import { Sparkles, Play, RefreshCw, Loader2, Mic, Zap, Link2, Square } from 'lucide-react';
 
 export default function Home() {
   // State management
@@ -38,6 +38,9 @@ export default function Home() {
   const [selectedNodeForConfig, setSelectedNodeForConfig] = useState<WorkflowNode | null>(null);
   const [toast, setToast] = useState<string | { text: string; type?: 'success' | 'error' | 'info' } | null>(null);
   const [showVoiceOverlay, setShowVoiceOverlay] = useState(false);
+  const [showQuickMic, setShowQuickMic] = useState(false);
+  const [textCommand, setTextCommand] = useState('');
+  const [inlineRecordOpen, setInlineRecordOpen] = useState(false);
   const [showDebugger, setShowDebugger] = useState(false);
   useEffect(() => {
     if (!toast) return;
@@ -193,12 +196,43 @@ export default function Home() {
     }
   };
 
+  // Handle typed command submit with off-topic guard and toasts
+  const handleSubmitText = async () => {
+    const text = textCommand.trim();
+    if (!text) return;
+
+    // Off-topic guard (same as voice)
+    const offTopicPatterns = [
+      /how\s+are\s+you/i,
+      /what'?s\s+up/i,
+      /hello|hi|hey\b/i,
+      /good\s+(morning|evening|night)/i,
+      /tell\s+me\s+a\s+joke/i,
+      /who\s+are\s+you/i,
+      /your\s+name/i,
+      /weather|temperature/i,
+    ];
+    const intentPatterns = [
+      /upload|add|create|summarize|analyze|extract|email|send|fetch|search|generate|gather/i,
+      /node|step|workflow/i,
+      /after|before|in\s+parallel|then/i,
+    ];
+    const hasIntent = intentPatterns.some((re) => re.test(text));
+    if (!hasIntent && offTopicPatterns.some((re) => re.test(text))) {
+      setToast({ text: 'I can build workflows. Try: "Upload a CSV and summarize it".', type: 'error' });
+      return;
+    }
+    setTranscribedText(text);
+    await parseWorkflow(text);
+  };
+
   // Parse workflow from text
   const parseWorkflow = async (text: string) => {
     try {
       setIsParsingWorkflow(true);
       setParseError(null);
 
+      setToast({ text: 'Parsing with Cerebras AI…', type: 'info' });
       const response = await fetch('/api/parse', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -216,8 +250,11 @@ export default function Home() {
     } catch (error: any) {
       console.error('Parse error:', error);
       setParseError(error.message);
+      setToast({ text: 'Parsing failed. Open Debugger for details.', type: 'error' });
     } finally {
       setIsParsingWorkflow(false);
+      // clear info toast if still there
+      setToast((prev) => (prev && (prev as any).type === 'info' ? null : prev));
     }
   };
 
@@ -807,24 +844,68 @@ export default function Home() {
               <div className="bg-black/80 border border-white/10 rounded-xl shadow-2xl w-[960px] max-w-[92vw] h-[420px] overflow-hidden flex">
                 {/* Left: Recording + Start from blank */}
                 <div className="flex flex-col items-center justify-center gap-6 w-1/2 p-6">
-                  <div className="w-full text-center">
-                    <FloatingMicButton onTranscribed={handleTranscribed} />
-                    {(isParsingWorkflow || isEditingWorkflow) && (
-                      <div className="mt-4 inline-flex items-center gap-3 text-white bg-black/60 px-4 py-2 rounded-lg border border-white/15">
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        <span className="font-medium text-sm">Parsing with Cerebras AI…</span>
+                  <div className="w-full max-w-sm mx-auto text-center">
+                    <div className="text-3xl md:text-4xl font-semibold text-white mb-3">Voice Graph</div>
+                    <div className="text-[11px] leading-tight text-white/70 mb-5">
+                      Build a voice‑to‑workflow automation system<br/>with visual graph interface.
+                    </div>
+                    {/* Input with mic and send */}
+                    <div className="relative w-full">
+                      <input
+                        value={textCommand}
+                        onChange={(e) => setTextCommand(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleSubmitText(); }}
+                        placeholder="Describe your automation..."
+                        className="w-full bg-black border border-white/15 rounded-lg pl-4 pr-24 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-white/30"
+                      />
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                        <Button size="sm" variant="ghost" className={`w-9 h-8 p-0 justify-center ${inlineRecordOpen ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-white text-black hover:bg-white/90'}`} onClick={() => {
+                          if (workflow) {
+                            setShowQuickMic(true);
+                          } else {
+                            setInlineRecordOpen((v) => !v);
+                          }
+                        }} disabled={isParsingWorkflow || isEditingWorkflow}>
+                          {isParsingWorkflow || isEditingWorkflow ? <Loader2 className="w-4 h-4 animate-spin" /> : (inlineRecordOpen ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />)}
+                        </Button>
+                        <Button size="sm" className="bg-white text-black hover:bg-white/90 h-8 px-3" onClick={handleSubmitText} disabled={isParsingWorkflow || isEditingWorkflow}>
+                          {isParsingWorkflow || isEditingWorkflow ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send'}
+                        </Button>
+                      </div>
+                    </div>
+                    {inlineRecordOpen && !workflow && (
+                      <div className="mt-4">
+                        <Card className="p-4 bg-black border border-white/15 text-white rounded-xl">
+                          <div className="text-xs text-white/70 mb-2">Speak your automation. Recording starts immediately.</div>
+                          <VoiceInput onTranscribed={async (text) => {
+                            try {
+                              setInlineRecordOpen(false);
+                              await handleTranscribed(text);
+                            } catch (e) {
+                              console.error(e);
+                              setToast({ text: 'Voice input failed. See Debugger for details.', type: 'error' });
+                            }
+                          }} autoStart />
+                        </Card>
                       </div>
                     )}
+                    <div className="mt-6 flex items-center justify-center text-white/40 text-xs select-none">
+                      <span className="px-2">—</span>
+                      <span>or</span>
+                      <span className="px-2">—</span>
+                    </div>
+                    <div className="mt-3 flex items-center justify-center">
+                      <Button
+                        variant="outline"
+                        className="h-10 px-4 bg-black/40 hover:bg-black/60 border-white/20 text-white w-full"
+                        onClick={() => {
+                          setWorkflow({ workflowId: `workflow-${Date.now()}`, nodes: [], edges: [] });
+                        }}
+                      >
+                        Start from blank
+                      </Button>
+                    </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    className="h-10 px-4 bg-black/40 hover:bg-black/60 border-white/20 text-white"
-                    onClick={() => {
-                      setWorkflow({ workflowId: `workflow-${Date.now()}`, nodes: [], edges: [] });
-                    }}
-                  >
-                    Start from blank
-                  </Button>
                 </div>
 
                 {/* Divider */}
@@ -1070,6 +1151,30 @@ export default function Home() {
                 }
               }} isEditMode autoStart />
             </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Quick Mic Overlay for text bar */}
+      {showQuickMic && (
+        <div className="fixed inset-0 flex items-center justify-center z-[100]">
+          <div className="absolute inset-0 bg-black/70" onClick={() => setShowQuickMic(false)}></div>
+          <Card className="relative z-[101] p-5 bg-black border border-white/15 text-white w-[420px] rounded-2xl shadow-2xl pointer-events-auto">
+            <div className="flex items-center justify-between">
+              <div className="text-base font-semibold">Voice Input</div>
+              <Button size="sm" variant="ghost" className="text-white hover:bg-white/10" onClick={() => setShowQuickMic(false)}>Close</Button>
+            </div>
+            <div className="h-px bg-white/10 my-3" />
+            <div className="text-xs text-white/70 mb-3">Speak your automation. Recording starts immediately.</div>
+            <VoiceInput onTranscribed={async (text) => {
+              try {
+                setShowQuickMic(false);
+                await handleTranscribed(text);
+              } catch (e) {
+                console.error(e);
+                setToast({ text: 'Voice input failed. See Debugger for details.', type: 'error' });
+              }
+            }} autoStart />
           </Card>
         </div>
       )}
