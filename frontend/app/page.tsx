@@ -6,6 +6,7 @@ import { NodesLibrary } from '@/components/NodesLibrary';
 import { FloatingMicButton } from '@/components/FloatingMicButton';
 import { VoiceInput } from '@/components/VoiceInput';
 import { WorkflowCanvas } from '@/components/WorkflowCanvas';
+import WorkflowToolbar from '@/components/motion-primitives/WorkflowToolbar';
 import { ExecutionLogs } from '@/components/ExecutionLogs';
 import { VisualDebugger } from '@/components/VisualDebugger';
 import { ConfigModal } from '@/components/ConfigModal';
@@ -15,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Workflow, ExecutionLog, WorkflowNode } from '@/lib/types';
 import { WorkflowRun } from '@/lib/workflow-history';
-import { Sparkles, Play, RefreshCw, Loader2, Mic, Zap, Link2, Square } from 'lucide-react';
+import { Sparkles, Play, RefreshCw, Loader2, Mic, Zap, Link2, Square, Bug } from 'lucide-react';
 
 export default function Home() {
   // State management
@@ -27,6 +28,7 @@ export default function Home() {
   const [executionLogs, setExecutionLogs] = useState<ExecutionLog[]>([]);
   const [activeNodeIds, setActiveNodeIds] = useState<string[]>([]);
   const [errorNodeId, setErrorNodeId] = useState<string | null>(null);
+  const [successfulNodeIds, setSuccessfulNodeIds] = useState<string[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionStartTime, setExecutionStartTime] = useState<number | null>(null);
   // Voice Edit mode (for voice-based workflow editing)
@@ -71,6 +73,11 @@ export default function Home() {
           // Update logs
           setExecutionLogs(data.run.logs);
           
+          // Extract successful nodes from logs
+          const successLogs = data.run.logs.filter((log: any) => log.type === 'success');
+          const successfulNodes = successLogs.map((log: any) => log.nodeId).filter((id: string) => id !== 'system');
+          setSuccessfulNodeIds(successfulNodes);
+          
           // Update status based on workflow state
           if (data.run.status === 'completed') {
             hasCompleted = true; // Mark as completed
@@ -94,6 +101,7 @@ export default function Home() {
             hasCompleted = true; // Mark as failed
             setIsExecuting(false);
             setActiveNodeIds([]);
+            setSuccessfulNodeIds([]);
             setExecutionStartTime(null);
             const errorLog = data.run.logs.find((log: any) => log.type === 'error');
             if (errorLog) {
@@ -128,6 +136,7 @@ export default function Home() {
               setIsExecuting(false);
               setErrorNodeId(errorLog.nodeId || null);
               setActiveNodeIds([]);
+              setSuccessfulNodeIds([]);
               setCurrentWorkflowId(null);
             }
           }
@@ -187,7 +196,7 @@ export default function Home() {
       return; // Do not create or edit workflows on off-topic input
     }
     
-      if (isEditMode && workflow) {
+    if (isEditMode && workflow) {
       // Edit existing workflow
       await editWorkflow(text);
     } else {
@@ -247,6 +256,14 @@ export default function Home() {
 
       setWorkflow(data.workflow);
       setIsEditMode(false); // Exit edit mode after creating new workflow
+      
+      // Reset execution states when creating new workflow
+      setActiveNodeIds([]);
+      setErrorNodeId(null);
+      setSuccessfulNodeIds([]);
+      setExecutionLogs([]);
+      setIsExecuting(false);
+      setExecutionStartTime(null);
     } catch (error: any) {
       console.error('Parse error:', error);
       setParseError(error.message);
@@ -294,6 +311,14 @@ export default function Home() {
       }
 
       setWorkflow(data.workflow);
+      
+      // Reset execution states when editing workflow
+      setActiveNodeIds([]);
+      setErrorNodeId(null);
+      setSuccessfulNodeIds([]);
+      setExecutionLogs([]);
+      setIsExecuting(false);
+      setExecutionStartTime(null);
       
       // Show detailed success message
       setExecutionLogs((prev) => [
@@ -351,6 +376,7 @@ export default function Home() {
     setExecutionLogs([]);
     setActiveNodeIds([]);
     setErrorNodeId(null);
+    setSuccessfulNodeIds([]);
 
     try {
       const response = await fetch('/api/execute-inngest', {
@@ -413,6 +439,11 @@ export default function Home() {
     setExecutionLogs(run.logs);
     setCurrentWorkflowId(run.id);
     
+    // Extract successful nodes from logs
+    const successLogs = run.logs.filter((log) => log.type === 'success');
+    const successfulNodes = successLogs.map((log) => log.nodeId).filter((id) => id !== 'system');
+    setSuccessfulNodeIds(successfulNodes);
+    
     // Set active/error nodes based on status
     if (run.status === 'running') {
       setIsExecuting(true);
@@ -427,15 +458,24 @@ export default function Home() {
         setErrorNodeId(errorLog.nodeId);
       }
       setActiveNodeIds([]);
+      setSuccessfulNodeIds([]);
     } else if (run.status === 'completed') {
       setIsExecuting(false);
       setActiveNodeIds([]);
       setErrorNodeId(null);
     }
     
-    // Clear edit mode
+    // Clear edit mode and reset execution states
     setIsEditMode(false);
     setParseError(null);
+    
+    // Ensure execution states are properly reset
+    if (run.status === 'completed') {
+      setActiveNodeIds([]);
+      setErrorNodeId(null);
+    } else if (run.status === 'failed') {
+      setActiveNodeIds([]);
+    }
   };
 
   // Execute workflow with config
@@ -452,6 +492,7 @@ export default function Home() {
     setExecutionLogs([]);
     setActiveNodeIds([]);
     setErrorNodeId(null);
+    setSuccessfulNodeIds([]);
     setExecutionStartTime(Date.now());
 
     try {
@@ -520,8 +561,9 @@ export default function Home() {
                 });
                 setErrorNodeId(null);
               } else if (data.type === 'success') {
-                // Remove completed node from active list
+                // Remove completed node from active list and add to successful list
                 setActiveNodeIds(prev => prev.filter(id => id !== data.nodeId));
+                setSuccessfulNodeIds(prev => [...prev, data.nodeId]);
                 // if success from LLM with metrics, nothing else
               } else if (data.type === 'error') {
                 // Error occurred - stop everything immediately
@@ -645,6 +687,14 @@ export default function Home() {
         edges: [],
       });
       
+      // Reset execution states when creating new workflow
+      setActiveNodeIds([]);
+      setErrorNodeId(null);
+      setSuccessfulNodeIds([]);
+      setExecutionLogs([]);
+      setIsExecuting(false);
+      setExecutionStartTime(null);
+      
       console.log('✅ Created new workflow with node:', newNode);
       return;
     }
@@ -663,6 +713,14 @@ export default function Home() {
       ...workflow,
       nodes: [...workflow.nodes, newNode],
     });
+    
+    // Reset execution states when modifying workflow
+    setActiveNodeIds([]);
+    setErrorNodeId(null);
+    setSuccessfulNodeIds([]);
+    setExecutionLogs([]);
+    setIsExecuting(false);
+    setExecutionStartTime(null);
     
     console.log('✅ Added new node:', newNode);
   };
@@ -683,6 +741,14 @@ export default function Home() {
       ...workflow,
       edges: [...workflow.edges, newEdge],
     });
+    
+    // Reset execution states when modifying workflow structure
+    setActiveNodeIds([]);
+    setErrorNodeId(null);
+    setSuccessfulNodeIds([]);
+    setExecutionLogs([]);
+    setIsExecuting(false);
+    setExecutionStartTime(null);
   };
 
   // Handle edge deletion
@@ -695,6 +761,14 @@ export default function Home() {
       ...workflow,
       edges: workflow.edges.filter(e => e.id !== edgeId),
     });
+    
+    // Reset execution states when modifying workflow structure
+    setActiveNodeIds([]);
+    setErrorNodeId(null);
+    setSuccessfulNodeIds([]);
+    setExecutionLogs([]);
+    setIsExecuting(false);
+    setExecutionStartTime(null);
   };
 
   // Toggle manual mode
@@ -767,6 +841,7 @@ export default function Home() {
     setExecutionLogs([]);
     setActiveNodeIds([]);
     setErrorNodeId(null);
+    setSuccessfulNodeIds([]);
     setIsExecuting(false);
     setExecutionStartTime(null);
     setIsEditMode(false);
@@ -794,6 +869,8 @@ export default function Home() {
 
   return (
     <div className={`relative min-h-screen w-full overflow-hidden text-white ${!workflow ? 'noisy-bg' : 'bg-black'}`}>
+      {/* Listen for debugger open events from the top-left icon */}
+      <ScriptListener setShowDebugger={setShowDebugger} />
       {/* Full-Screen Workflow Canvas Background */}
       <div className="absolute inset-0 w-full h-full z-[1]">
         <WorkflowCanvas
@@ -801,6 +878,7 @@ export default function Home() {
           edges={workflow?.edges || []}
           activeNodeIds={activeNodeIds}
           errorNodeId={errorNodeId}
+          successfulNodeIds={successfulNodeIds}
           onNodeDragStop={handleNodeDragStop}
           onNodeDelete={handleNodeDelete}
           onNodeClick={handleNodeClick}
@@ -827,11 +905,11 @@ export default function Home() {
         {/* Inline Nodes Library - show only when a workflow exists */}
         {workflow && (
           <div className="fixed top-1/2 left-6 -translate-y-1/2 pointer-events-auto z-30 w-56 hidden md:block">
-            <Card className="text-white flex flex-col gap-6 rounded-xl border p-3 bg-neutral-900/90 border-white/15 backdrop-blur-md shadow-2xl overflow-y-auto max-h-[70vh]">
-              <div className="text-xs font-semibold mb-2 text-white/90">Add Nodes</div>
+            <Card className="text-white flex flex-col gap-6 rounded-xl border p-3 bg-black/95 border-white/20 backdrop-blur-md shadow-2xl overflow-y-auto max-h-[70vh]">
+              <div className="text-xs font-semibold mb-2 text-white">Add Nodes</div>
               <NodesLibrary onAddNode={handleAddNode} compact />
-            </Card>
-          </div>
+          </Card>
+        </div>
         )}
 
         {/* Top Header removed per request */}
@@ -846,30 +924,30 @@ export default function Home() {
                 <div className="flex flex-col items-center justify-center gap-6 w-1/2 p-6">
                   <div className="w-full max-w-sm mx-auto text-center">
                     <div className="text-3xl md:text-4xl font-semibold text-white mb-3">Voice Graph</div>
-                    <div className="text-[11px] leading-tight text-white/70 mb-5">
+                    <div className="text-[15px] leading-tight text-white/70 mb-5">
                       Build a voice‑to‑workflow automation system<br/>with visual graph interface.
-                    </div>
+                </div>
                     {/* Input with mic and send */}
                     <div className="relative w-full">
-                      <input
-                        value={textCommand}
-                        onChange={(e) => setTextCommand(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') handleSubmitText(); }}
-                        placeholder="Describe your automation..."
-                        className="w-full bg-black border border-white/15 rounded-lg pl-4 pr-24 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-white/30"
-                      />
+                        <input
+                          value={textCommand}
+                          onChange={(e) => setTextCommand(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleSubmitText(); }}
+                          placeholder="Describe your automation..."
+                          className="w-full bg-black border border-white/15 rounded-lg pl-4 pr-32 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-white/30"
+                        />
                       <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                        <Button size="sm" variant="ghost" className={`w-9 h-8 p-0 justify-center ${inlineRecordOpen ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-white text-black hover:bg-white/90'}`} onClick={() => {
+                        <Button size="sm" variant="ghost" className={`w-9 h-8 p-0 justify-center ${inlineRecordOpen ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-black text-white hover:bg-black/80'}`} onClick={() => {
                           if (workflow) {
                             setShowQuickMic(true);
                           } else {
                             setInlineRecordOpen((v) => !v);
                           }
-                        }} disabled={isParsingWorkflow || isEditingWorkflow}>
-                          {isParsingWorkflow || isEditingWorkflow ? <Loader2 className="w-4 h-4 animate-spin" /> : (inlineRecordOpen ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />)}
+                        }}>
+                          {inlineRecordOpen ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                         </Button>
-                        <Button size="sm" className="bg-white text-black hover:bg-white/90 h-8 px-3" onClick={handleSubmitText} disabled={isParsingWorkflow || isEditingWorkflow}>
-                          {isParsingWorkflow || isEditingWorkflow ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send'}
+                        <Button size="sm" className=" bg-white hover:bg-white/80 h-8 px-3" onClick={handleSubmitText}>
+                          Send
                         </Button>
                       </div>
                     </div>
@@ -886,7 +964,7 @@ export default function Home() {
                               setToast({ text: 'Voice input failed. See Debugger for details.', type: 'error' });
                             }
                           }} autoStart />
-                        </Card>
+                </Card>
                       </div>
                     )}
                     <div className="mt-6 flex items-center justify-center text-white/40 text-xs select-none">
@@ -895,15 +973,22 @@ export default function Home() {
                       <span className="px-2">—</span>
                     </div>
                     <div className="mt-3 flex items-center justify-center">
-                      <Button
-                        variant="outline"
+                  <Button
+                    variant="outline"
                         className="h-10 px-4 bg-black/40 hover:bg-black/60 border-white/20 text-white w-full"
                         onClick={() => {
                           setWorkflow({ workflowId: `workflow-${Date.now()}`, nodes: [], edges: [] });
+                          // Reset execution states when creating blank workflow
+                          setActiveNodeIds([]);
+                          setErrorNodeId(null);
+                          setSuccessfulNodeIds([]);
+                          setExecutionLogs([]);
+                          setIsExecuting(false);
+                          setExecutionStartTime(null);
                         }}
                       >
                         Start from blank
-                      </Button>
+                  </Button>
                     </div>
                   </div>
                 </div>
@@ -918,23 +1003,23 @@ export default function Home() {
                   {/* Developer */}
                   <div className="mb-4">
                     <div className="text-xs uppercase tracking-wide text-white/70 mb-2">Developer</div>
-                    <Button
-                      variant="outline"
+                      <Button
+                        variant="outline"
                       className="w-full h-auto text-left bg-black/40 hover:bg-black/60 border-white/20 text-white justify-start p-4"
-                      onClick={() => loadExample('Get recent commits from my GitHub repository, analyze the code changes, and create a Notion page with development summary')}
-                    >
+                        onClick={() => loadExample('Get recent commits from my GitHub repository, analyze the code changes, and create a Notion page with development summary')}
+                      >
                       <div>
                         <div className="font-medium">Dev Progress Tracker</div>
                         <div className="text-xs text-white/60 mt-1">Analyze recent commits and produce a Notion summary.</div>
-                      </div>
-                    </Button>
-                  </div>
+                        </div>
+                      </Button>
+                        </div>
 
                   {/* Traveler */}
                   <div className="mb-4">
                     <div className="text-xs uppercase tracking-wide text-white/70 mb-2">Traveler</div>
-                    <Button
-                      variant="outline"
+                      <Button
+                        variant="outline"
                       className="w-full h-auto text-left bg-black/40 hover:bg-black/60 border-white/20 text-white justify-start p-4"
                       onClick={() => {
                         const now = Date.now();
@@ -947,7 +1032,7 @@ export default function Home() {
                             params: {
                               text: 'Enter your destination and (optional) dates. Example: Jaipur, 12-16 Oct.'
                             },
-                            position: { x: 150, y: 150 },
+                            position: { x: 400, y: 50 },
                           },
                           {
                             id: 'step-1',
@@ -958,7 +1043,7 @@ export default function Home() {
                               query: 'fastest and cheapest routes to {input} flights trains buses with booking urls',
                               maxResults: 5,
                             },
-                            position: { x: 450, y: 120 },
+                            position: { x: 200, y: 200 },
                           },
                           {
                             id: 'step-2',
@@ -970,7 +1055,7 @@ export default function Home() {
                               maxResults: 5,
                               includeDomains: ['booking.com','hotels.com','tripadvisor.com'],
                             },
-                            position: { x: 450, y: 220 },
+                            position: { x: 600, y: 200 },
                           },
                           {
                             id: 'step-3',
@@ -978,9 +1063,9 @@ export default function Home() {
                             action: 'summarize',
                             label: 'Summarize Itinerary',
                             params: {
-                              prompt: 'Create a trip plan that strictly uses the provided destination and dates from the input; never assume a different city. Include: 1) Fastest route with Google Maps or booking URL; 2) Cheapest viable route with Google Maps or booking URL; 3) A table of 5 hotels (Name, Area, Price range, Direct URL); 4) Short day-by-day outline. If info is missing, say “Not found” instead of assuming.'
+                              prompt: 'Create a trip plan that strictly uses the provided destination and dates from the input; never assume a different city. Include: 1) Fastest route with Google Maps or booking URL; 2) Cheapest viable route with Google Maps or booking URL; 3) A table of 5 hotels (Name, Area, Price range, Direct URL); 4) Short day-by-day outline. If info is missing, say "Not found" instead of assuming.'
                             },
-                            position: { x: 750, y: 170 },
+                            position: { x: 400, y: 350 },
                           },
                           {
                             id: 'step-4',
@@ -988,7 +1073,7 @@ export default function Home() {
                             action: 'send',
                             label: 'Email Plan',
                             params: { subject: 'Your Trip Plan' },
-                            position: { x: 1050, y: 170 },
+                            position: { x: 400, y: 500 },
                           },
                         ];
                         const edges = [
@@ -999,13 +1084,20 @@ export default function Home() {
                           { id: 'edge-4', source: 'step-3', target: 'step-4' },
                         ];
                         setWorkflow({ workflowId: `workflow-${now}`, nodes, edges });
+                        // Reset execution states when loading template
+                        setActiveNodeIds([]);
+                        setErrorNodeId(null);
+                        setSuccessfulNodeIds([]);
+                        setExecutionLogs([]);
+                        setIsExecuting(false);
+                        setExecutionStartTime(null);
                       }}
                     >
                       <div>
                         <div className="font-medium">Trip Planner</div>
                         <div className="text-xs text-white/60 mt-1">Find routes & hotels for your destination and email a concise plan.</div>
-                      </div>
-                    </Button>
+                        </div>
+                      </Button>
                   </div>
 
                   {/* Researcher */}
@@ -1032,28 +1124,27 @@ export default function Home() {
       {/* Toast */}
       {toast && (
         <div className="fixed top-4 right-1/2 translate-x-1/2 md:right-6 md:translate-x-0 z-50">
-          <Card className={`px-4 py-2 shadow-2xl border ${toast.type === 'error' ? 'bg-black border-white/20' : toast.type === 'success' ? 'bg-black border-white/20' : 'bg-black border-white/20'}`}>
-            <span className={`text-sm ${toast.type === 'error' ? 'text-red-400' : toast.type === 'success' ? 'text-white' : 'text-white/80'}`}>{typeof toast === 'string' ? toast : toast.text}</span>
-          </Card>
+          <Card className={`px-4 py-2 shadow-2xl border ${typeof toast === 'object' && toast.type === 'error' ? 'bg-black border-white/20' : typeof toast === 'object' && toast.type === 'success' ? 'bg-black border-white/20' : 'bg-black border-white/20'}`}>
+            <span className={`text-sm ${typeof toast === 'object' && toast.type === 'error' ? 'text-red-400' : typeof toast === 'object' && toast.type === 'success' ? 'text-white' : 'text-white/80'}`}>{typeof toast === 'string' ? toast : toast.text}</span>
+            </Card>
         </div>
       )}
 
       {/* Voice Edit Overlay (moved out of pointer-events-none container) */}
 
-      {/* Right Side - Compact Info */}
-        <div className="absolute top-6 right-6 w-80 space-y-3 pointer-events-auto max-h-[calc(100vh-120px)] overflow-y-auto pb-20">
-          {/* Transcribed Text Card - Compact */}
-          {transcribedText && (
-            <Card className="p-3 bg-black/80 border-white/20 backdrop-blur-md shadow-2xl text-white">
-              <h2 className="text-xs font-semibold mb-1 text-white/80">Transcribed Text</h2>
-              <p className="text-white/80 text-sm leading-relaxed line-clamp-5">{transcribedText}</p>
+      {/* Right Side - Compact Info - Only show when workflow is active */}
+        {workflow && (
+          <div className="absolute top-6 right-6 w-72 space-y-2 pointer-events-auto max-h-[calc(100vh-120px)] overflow-y-auto pb-20">
+            {/* Transcribed Text Card - Compact */}
+            {transcribedText && (
+              <Card className="p-2.5 bg-black/95 backdrop-blur-md border-white/20 shadow-2xl text-white">
+                <h2 className="text-sm font-semibold mb-1 text-white">Transcribed Text</h2>
+                <p className="text-white text-xs leading-relaxed line-clamp-4">{transcribedText}</p>
             </Card>
           )}
-          {/* Debug button to open Visual Debugger - only when a workflow exists */}
-          {workflow && (
-            <Button onClick={() => setShowDebugger(true)} className="w-full bg-white text-black hover:bg-white/90 text-sm">Open Debugger</Button>
-          )}
+            {/* Debug button moved to top-left; removed from here */}
         </div>
+        )}
 
         {/* Bottom Left - Reset Button */}
         {workflow && (
@@ -1061,7 +1152,7 @@ export default function Home() {
             <Button 
               variant="outline" 
               onClick={handleReset} 
-              className="gap-2 bg-gray-900/95 backdrop-blur-md border-gray-700 hover:bg-red-600/90 hover:border-red-600 shadow-2xl"
+              className="gap-2 bg-black/95 backdrop-blur-md border-white/20 hover:bg-red-600/90 hover:border-red-600 shadow-2xl"
             >
               <RefreshCw className="w-4 h-4" />
               Reset
@@ -1069,59 +1160,30 @@ export default function Home() {
           </div>
         )}
 
-        {/* Top Center - Compact Workflow Controls */}
+        {/* Top Center - Motion Primitives Toolbar */}
         {workflow && (
-          <div className="fixed top-3 left-1/2 -translate-x-1/2 pointer-events-auto z-40 w-auto">
-            <Card className="px-3 py-2 bg-black/80 border border-white/20 backdrop-blur-lg shadow-2xl rounded-xl text-white">
-              <div className="flex items-center gap-2">
-                {/* Run Workflow Button - Primary Action */}
-                {!isExecuting ? (
-                  <Button
-                    onClick={handleRunWorkflow}
-                    size="sm"
-                    className="gap-1 bg-white hover:bg-white/90 text-black font-medium px-3 text-xs"
-                    disabled={isEditMode}
-                  >
-                    <Play className="w-3 h-3" />
-                    Run
-                  </Button>
-                ) : (
-                  <div className="flex items-center gap-1 px-2 py-1 bg-white/10 rounded border border-white/30">
-                    <Loader2 className="w-3 h-3 animate-spin text-white" />
-                    <span className="text-xs text-white/80 font-medium">Executing</span>
-                  </div>
-                )}
-
-                <div className="h-6 w-px bg-white/20"></div>
-                
-                <Button
-                  onClick={() => setShowVoiceOverlay(true)}
-                  size="sm"
-                  className={`gap-1 text-xs px-2 bg-white hover:bg-white/90 text-black`}
-                >
-                  <Mic className="w-3 h-3" />
-                  Voice Edit
-                </Button>
-
-                {/* Manual Mode removed - editing is always enabled */}
-
-                <div className="h-6 w-px bg-white/20"></div>
-
-                {/* Background Execution Toggle - Compact */}
-                <div className="flex items-center gap-1">
-                  <Zap className={`w-3 h-3 ${useBackgroundExecution ? 'text-white' : 'text-white/40'}`} />
-                  <Button
-                    size="sm"
-                    variant={useBackgroundExecution ? "default" : "outline"}
-                    onClick={() => setUseBackgroundExecution(!useBackgroundExecution)}
-                    className={`h-5 text-[10px] px-1.5 ${useBackgroundExecution ? 'bg-white text-black hover:bg-white/90' : 'border-white/30 text-white hover:bg-white/10'}`}
-                  >
-                    {useBackgroundExecution ? 'BG' : 'BG'}
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          </div>
+          <WorkflowToolbar
+            onRun={handleRunWorkflow}
+            onVoiceEdit={async (text) => {
+              try {
+                setIsEditMode(true);
+                await editWorkflow(text);
+              } catch (e) {
+                console.error(e);
+                setToast({ text: 'Voice edit failed. See Debugger for details.', type: 'error' });
+              } finally {
+                setIsEditMode(false);
+              }
+            }}
+            isExecuting={isExecuting}
+            useBackgroundExecution={useBackgroundExecution}
+            onToggleBG={() => setUseBackgroundExecution(!useBackgroundExecution)}
+            onOpenText={handleSubmitText}
+            textCommand={textCommand}
+            onTextChange={setTextCommand}
+            isParsingWorkflow={isParsingWorkflow}
+            isEditingWorkflow={isEditingWorkflow}
+          />
         )}
 
       </div>
@@ -1130,11 +1192,11 @@ export default function Home() {
       {showVoiceOverlay && (
         <div className="fixed inset-0 flex items-center justify-center z-[100]">
           <div className="absolute inset-0 bg-black/70" onClick={() => setShowVoiceOverlay(false)}></div>
-          <Card className="relative z-[101] p-5 bg-black border border-white/15 text-white w-[420px] rounded-2xl shadow-2xl pointer-events-auto">
+          <Card className="relative z-[101] p-5 bg-black border border-white/20 text-white w-[420px] rounded-2xl shadow-2xl pointer-events-auto">
             <div className="flex items-center justify-between">
               <div className="text-base font-semibold">Voice Edit</div>
               <Button size="sm" variant="ghost" className="text-white hover:bg-white/10" onClick={() => setShowVoiceOverlay(false)}>Close</Button>
-            </div>
+                </div>
             <div className="h-px bg-white/10 my-3" />
             <div className="text-xs text-white/70 mb-3">Speak your edit. Recording starts immediately.</div>
             <div>
@@ -1150,20 +1212,20 @@ export default function Home() {
                   setIsEditMode(false);
                 }
               }} isEditMode autoStart />
-            </div>
-          </Card>
-        </div>
-      )}
+              </div>
+            </Card>
+          </div>
+        )}
 
       {/* Quick Mic Overlay for text bar */}
       {showQuickMic && (
         <div className="fixed inset-0 flex items-center justify-center z-[100]">
           <div className="absolute inset-0 bg-black/70" onClick={() => setShowQuickMic(false)}></div>
-          <Card className="relative z-[101] p-5 bg-black border border-white/15 text-white w-[420px] rounded-2xl shadow-2xl pointer-events-auto">
+          <Card className="relative z-[101] p-5 bg-black border border-white/20 text-white w-[420px] rounded-2xl shadow-2xl pointer-events-auto">
             <div className="flex items-center justify-between">
               <div className="text-base font-semibold">Voice Input</div>
               <Button size="sm" variant="ghost" className="text-white hover:bg-white/10" onClick={() => setShowQuickMic(false)}>Close</Button>
-            </div>
+      </div>
             <div className="h-px bg-white/10 my-3" />
             <div className="text-xs text-white/70 mb-3">Speak your automation. Recording starts immediately.</div>
             <VoiceInput onTranscribed={async (text) => {
@@ -1197,7 +1259,7 @@ export default function Home() {
       )}
 
       {/* Workflow History - Already Floating */}
-      <WorkflowHistory onRestore={handleRestoreWorkflow} />
+      <WorkflowHistory onRestore={handleRestoreWorkflow} hasWorkflow={!!workflow} />
 
       {/* Visual Debugger Modal */}
       {workflow && (
@@ -1211,4 +1273,14 @@ export default function Home() {
       )}
     </div>
   );
+}
+
+function ScriptListener({ setShowDebugger }: { setShowDebugger: (v: boolean) => void }) {
+  // Subscribe to global event dispatched from LeftSidebar
+  useEffect(() => {
+    const handler = () => setShowDebugger(true);
+    window.addEventListener('open-debugger', handler as any);
+    return () => window.removeEventListener('open-debugger', handler as any);
+  }, [setShowDebugger]);
+  return null;
 }

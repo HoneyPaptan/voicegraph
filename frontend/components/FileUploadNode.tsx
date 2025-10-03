@@ -186,7 +186,7 @@ export function FileUploadNode({
           )}
         </Card>
       ) : (
-        <Card className="p-4 bg-gray-800/50 border-gray-700">
+        <Card className="p-4 bg-black/50 border-white/20">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-start gap-3 flex-1">
               <div className="text-2xl">{getFileIcon(uploadedFile.name)}</div>

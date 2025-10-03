@@ -46,10 +46,10 @@ export function ConfigModal({ open, onClose, onSubmit, workflowNodes }: ConfigMo
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px] bg-gray-900 border-gray-800">
+      <DialogContent className="sm:max-w-[425px] bg-black border-white/20">
         <DialogHeader>
-          <DialogTitle>Workflow Configuration</DialogTitle>
-          <DialogDescription className="text-gray-400">
+          <DialogTitle className="text-white">Workflow Configuration</DialogTitle>
+          <DialogDescription className="text-white/70">
             Enter the required information to run this workflow.
           </DialogDescription>
         </DialogHeader>
@@ -57,7 +57,7 @@ export function ConfigModal({ open, onClose, onSubmit, workflowNodes }: ConfigMo
         <div className="grid gap-4 py-4">
           {needsNotion && (
             <div className="grid gap-2">
-              <Label htmlFor="notionPageId">Notion ID (Page or Database)</Label>
+              <Label htmlFor="notionPageId" className="text-white">Notion ID (Page or Database)</Label>
               <Input
                 id="notionPageId"
                 placeholder="e.g., 27e6ddfc5f1680228444ed4170ded29e"
@@ -65,12 +65,12 @@ export function ConfigModal({ open, onClose, onSubmit, workflowNodes }: ConfigMo
                 onChange={(e) =>
                   setConfig({ ...config, notionPageId: e.target.value })
                 }
-                className="bg-gray-800 border-gray-700 font-mono text-sm"
+                className="bg-black border-white/20 text-white font-mono text-sm"
               />
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-white/60">
                 32-character ID (with or without dashes). System auto-detects if it's a page or database.
               </p>
-              <p className="text-xs text-yellow-500">
+              <p className="text-xs text-white/80">
                 Example: notion.so/meeting-notes-<span className="font-bold">27e6ddfc5f1680228444ed4170ded29e</span>
               </p>
             </div>
@@ -78,15 +78,15 @@ export function ConfigModal({ open, onClose, onSubmit, workflowNodes }: ConfigMo
 
           {needsNotionCreate && (
             <div className="grid gap-2">
-              <div className="p-3 bg-blue-900/20 border border-blue-600/30 rounded-md">
+              <div className="p-3 bg-black/50 border border-white/20 rounded-md">
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                  <Label className="text-blue-300 font-medium">Notion Page Creation</Label>
+                  <div className="w-2 h-2 bg-white rounded-full"></div>
+                  <Label className="text-white font-medium">Notion Page Creation</Label>
                 </div>
-                <p className="text-xs text-blue-200">
+                <p className="text-xs text-white/80">
                   ✅ Default database configured - pages will be created automatically
                 </p>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-white/60 mt-1">
                   Optional: Override with a specific page or database ID above
                 </p>
               </div>
@@ -95,7 +95,7 @@ export function ConfigModal({ open, onClose, onSubmit, workflowNodes }: ConfigMo
 
           {needsGitHub && (
             <div className="grid gap-2">
-              <Label htmlFor="githubRepoUrl">GitHub Repository</Label>
+              <Label htmlFor="githubRepoUrl" className="text-white">GitHub Repository</Label>
               <Input
                 id="githubRepoUrl"
                 placeholder="e.g., HoneyPaptan/my-repo or https://github.com/owner/repo"
@@ -103,12 +103,12 @@ export function ConfigModal({ open, onClose, onSubmit, workflowNodes }: ConfigMo
                 onChange={(e) =>
                   setConfig({ ...config, githubRepoUrl: e.target.value })
                 }
-                className="bg-gray-800 border-gray-700 font-mono text-sm"
+                className="bg-black border-white/20 text-white font-mono text-sm"
               />
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-white/60">
                 Repository URL or owner/repo format for GitHub operations.
               </p>
-              <p className="text-xs text-yellow-500">
+              <p className="text-xs text-white/80">
                 Examples: <span className="font-bold">owner/repo</span> or full GitHub URL
               </p>
             </div>
@@ -116,7 +116,7 @@ export function ConfigModal({ open, onClose, onSubmit, workflowNodes }: ConfigMo
 
           {needsEmail && (
             <div className="grid gap-2">
-              <Label htmlFor="recipientEmail">Recipient Email</Label>
+              <Label htmlFor="recipientEmail" className="text-white">Recipient Email</Label>
               <Input
                 id="recipientEmail"
                 type="email"
@@ -125,17 +125,17 @@ export function ConfigModal({ open, onClose, onSubmit, workflowNodes }: ConfigMo
                 onChange={(e) =>
                   setConfig({ ...config, recipientEmail: e.target.value })
                 }
-                className="bg-gray-800 border-gray-700"
+                className="bg-black border-white/20 text-white"
               />
             </div>
           )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} className="border-white/20 text-white hover:bg-white/10">
             Cancel
           </Button>
-          <Button onClick={handleSubmit}>Run Workflow</Button>
+          <Button onClick={handleSubmit} className="bg-white text-black hover:bg-white/90">Run Workflow</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

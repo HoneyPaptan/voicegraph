@@ -129,7 +129,7 @@ export function NodesLibrary({ onAddNode, compact = false }: NodesLibraryProps) 
               <Button
                 key={node.type}
                 variant="outline"
-                className="justify-start h-10 text-xs bg-neutral-900/60 border-white/15 hover:bg-white/10 text-white"
+                className="justify-start h-10 text-xs bg-black/50 border-white/20 hover:bg-white/10 text-white"
                 onClick={() => setSelectedNode(node)}
               >
                 <span className={`inline-flex items-center gap-2`}>
@@ -154,7 +154,7 @@ export function NodesLibrary({ onAddNode, compact = false }: NodesLibraryProps) 
               <Button
                 key={action}
                 variant="outline"
-                className="justify-between h-10 text-xs bg-neutral-900/60 border-white/15 hover:bg-white/10 text-white"
+                className="justify-between h-10 text-xs bg-black/50 border-white/20 hover:bg-white/10 text-white"
                 onClick={() => handleAddNode(selectedNode.type, action)}
               >
                 <span className="capitalize">{action.replace(/_/g, ' ')}</span>
@@ -171,8 +171,8 @@ export function NodesLibrary({ onAddNode, compact = false }: NodesLibraryProps) 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-sm">Nodes Library</h3>
-        <p className="text-xs text-gray-400">Click to add nodes</p>
+        <h3 className="font-semibold text-sm text-white">Nodes Library</h3>
+        <p className="text-xs text-white/70">Click to add nodes</p>
       </div>
 
       <div className="space-y-3">
@@ -181,7 +181,7 @@ export function NodesLibrary({ onAddNode, compact = false }: NodesLibraryProps) 
             {AVAILABLE_NODES.map((node) => (
               <Card
                 key={node.type}
-                className="p-3 bg-gray-800/50 border-gray-700 hover:bg-gray-800/70 transition-colors cursor-pointer"
+                className="p-3 bg-black/50 border-white/20 hover:bg-white/10 transition-colors cursor-pointer"
                 onClick={() => setSelectedNode(node)}
               >
                 <div className="flex items-start gap-3">
@@ -189,8 +189,8 @@ export function NodesLibrary({ onAddNode, compact = false }: NodesLibraryProps) 
                     {node.icon}
                   </div>
                   <div className="flex-1">
-                    <h4 className="font-semibold text-sm">{node.label}</h4>
-                    <p className="text-xs text-gray-400 mt-1">{node.description}</p>
+                    <h4 className="font-semibold text-sm text-white">{node.label}</h4>
+                    <p className="text-xs text-white/70 mt-1">{node.description}</p>
                     <div className="flex items-center gap-2 mt-2">
                       <span className="text-[10px] text-white/70">
                         {node.actions.length} actions
@@ -208,7 +208,7 @@ export function NodesLibrary({ onAddNode, compact = false }: NodesLibraryProps) 
               variant="ghost"
               size="sm"
               onClick={() => setSelectedNode(null)}
-              className="mb-3 text-xs"
+              className="mb-3 text-xs text-white hover:bg-white/10"
             >
               ← Back to all nodes
             </Button>
@@ -219,19 +219,19 @@ export function NodesLibrary({ onAddNode, compact = false }: NodesLibraryProps) 
                   {selectedNode.icon}
                 </div>
                 <div>
-                  <h4 className="font-semibold text-sm">{selectedNode.label}</h4>
-                  <p className="text-xs text-white/60">{selectedNode.description}</p>
+                  <h4 className="font-semibold text-sm text-white">{selectedNode.label}</h4>
+                  <p className="text-xs text-white/70">{selectedNode.description}</p>
                 </div>
               </div>
             </div>
 
-            <h4 className="text-xs font-semibold mb-2 text-gray-300">Available Actions</h4>
+            <h4 className="text-xs font-semibold mb-2 text-white">Available Actions</h4>
             <div className="space-y-2">
               {selectedNode.actions.map((action) => (
                 <Button
                   key={action}
                   variant="outline"
-                  className="w-full justify-between text-left h-auto py-2 px-3 bg-black/40 hover:bg-white/10 border-white/20 text-white"
+                  className="w-full justify-between text-left h-auto py-2 px-3 bg-black/50 hover:bg-white/10 border-white/20 text-white"
                   onClick={() => handleAddNode(selectedNode.type, action)}
                 >
                   <div>
@@ -247,8 +247,8 @@ export function NodesLibrary({ onAddNode, compact = false }: NodesLibraryProps) 
               ))}
             </div>
 
-            <div className="mt-3 p-2 bg-white/5 border border-white/10 rounded-lg">
-              <p className="text-[10px] text-white/70">
+            <div className="mt-3 p-2 bg-white/10 border border-white/20 rounded-lg">
+              <p className="text-[10px] text-white/80">
                 <strong>Tip:</strong> After adding a node, connect it by dragging from the connection points.
               </p>
             </div>

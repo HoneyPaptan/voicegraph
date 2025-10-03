@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
-import { Menu, Sparkles, BookOpen } from 'lucide-react';
+import { Menu, Sparkles, BookOpen, Bug } from 'lucide-react';
 
 interface LeftSidebarProps {
   // Voice Input props
@@ -42,11 +42,26 @@ export function LeftSidebar({
           variant="default"
           size="icon"
           aria-label="Tools Menu"
-          className="fixed top-6 left-6 bg-white hover:bg-white/90 text-black shadow-2xl z-50 font-semibold border border-white/20 pointer-events-auto"
+          className="fixed top-6 left-6 bg-black hover:bg-black/80 text-white shadow-2xl z-50 font-semibold border border-white/20 pointer-events-auto"
         >
           <Menu className="w-5 h-5" />
         </Button>
       </SheetTrigger>
+
+      {/* Debugger icon next to menu */}
+      {hasWorkflow && (
+        <Button
+          aria-label="Open Debugger"
+          className="fixed top-6 left-16 h-9 w-9 bg-black text-white hover:bg-black/80 shadow-2xl z-[60] border border-white/20 pointer-events-auto"
+          size="icon"
+          onClick={() => {
+            const evt = new CustomEvent('open-debugger');
+            window.dispatchEvent(evt);
+          }}
+        >
+          <Bug className="w-4 h-4" />
+        </Button>
+      )}
       
       <SheetContent side="left" className="w-96 bg-black/90 border-white/15 backdrop-blur-lg px-4">
         <SheetHeader className="pb-4">
@@ -59,7 +74,7 @@ export function LeftSidebar({
             variant={activeTab === 'templates' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setActiveTab('templates')}
-            className={`flex-1 gap-1 ${activeTab === 'templates' ? 'bg-white text-black' : 'text-white hover:bg-white/10'}`}
+            className={`flex-1 gap-1 ${activeTab === 'templates' ? 'bg-white text-black' : 'bg-black text-white hover:bg-black/80'}`}
           >
             <BookOpen className="w-3 h-3" />
             Templates

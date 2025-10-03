@@ -187,14 +187,14 @@ export function NodeConfigPanel({ node, onClose, onSave }: NodeConfigPanelProps)
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center pointer-events-auto">
-      <Card className="w-[500px] max-h-[80vh] bg-gray-900/95 border-2 border-blue-600/50 backdrop-blur-lg shadow-2xl overflow-hidden flex flex-col">
+      <Card className="w-[500px] max-h-[80vh] bg-black/95 border-2 border-white/20 backdrop-blur-lg shadow-2xl overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="p-4 border-b border-gray-800 flex items-center justify-between bg-blue-600/10">
+        <div className="p-4 border-b border-white/20 flex items-center justify-between bg-black/50">
           <div className="flex items-center gap-3">
-            <Settings className="w-5 h-5 text-blue-400" />
+            <Settings className="w-5 h-5 text-white" />
             <div>
               <h3 className="font-semibold text-lg">Configure Node</h3>
-              <p className="text-xs text-gray-400 capitalize">
+              <p className="text-xs text-white/70 capitalize">
                 {node.type.replace(/_/g, ' ')} - {node.action.replace(/_/g, ' ')}
               </p>
             </div>
@@ -203,7 +203,7 @@ export function NodeConfigPanel({ node, onClose, onSave }: NodeConfigPanelProps)
             variant="ghost"
             size="sm"
             onClick={onClose}
-            className="hover:bg-gray-800"
+            className="hover:bg-white/10"
           >
             <X className="w-4 h-4" />
           </Button>
@@ -272,8 +272,8 @@ export function NodeConfigPanel({ node, onClose, onSave }: NodeConfigPanelProps)
                       value={params[config.key] || ''}
                       onChange={(e) => handleChange(config.key, e.target.value)}
                       placeholder={config.placeholder}
-                      className={`mt-1 w-full px-3 py-2 bg-gray-800 border rounded-md text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors[config.key] ? 'border-red-500' : 'border-gray-700'
+                      className={`mt-1 w-full px-3 py-2 bg-black border rounded-md text-sm text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/30 ${
+                        errors[config.key] ? 'border-red-500' : 'border-white/20'
                       }`}
                       rows={4}
                     />
@@ -284,7 +284,7 @@ export function NodeConfigPanel({ node, onClose, onSave }: NodeConfigPanelProps)
                       value={params[config.key] || ''}
                       onChange={(e) => handleChange(config.key, e.target.value)}
                       placeholder={config.placeholder}
-                      className={`mt-1 bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:ring-blue-500 ${
+                      className={`mt-1 bg-black border-white/20 text-white placeholder-white/50 focus:ring-white/30 ${
                         errors[config.key] ? 'border-red-500' : ''
                       }`}
                     />
@@ -303,8 +303,8 @@ export function NodeConfigPanel({ node, onClose, onSave }: NodeConfigPanelProps)
           )}
 
           {/* Info Box */}
-          <div className="mt-6 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-            <p className="text-xs text-blue-300">
+          <div className="mt-6 p-3 bg-white/10 border border-white/20 rounded-lg">
+            <p className="text-xs text-white/80">
               <strong>💡 Tip:</strong> Parameters support dynamic data from previous nodes. 
               Use the actual values or placeholders that will be replaced during execution.
             </p>
@@ -312,17 +312,17 @@ export function NodeConfigPanel({ node, onClose, onSave }: NodeConfigPanelProps)
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-800 flex items-center justify-between bg-gray-900/50">
+        <div className="p-4 border-t border-white/20 flex items-center justify-between bg-black/50">
           <Button
             variant="outline"
             onClick={onClose}
-            className="border-gray-700"
+            className="border-white/20 text-white hover:bg-white/10"
           >
             Cancel
           </Button>
           <Button
             onClick={handleSave}
-            className="bg-blue-600 hover:bg-blue-700 gap-2"
+            className="bg-white text-black hover:bg-white/90 gap-2"
           >
             <Save className="w-4 h-4" />
             Save Configuration

@@ -32,6 +32,7 @@ interface WorkflowCanvasProps {
   edges: WorkflowEdge[];
   activeNodeIds?: string[];
   errorNodeId?: string | null;
+  successfulNodeIds?: string[];
   onNodeDragStop?: (nodeId: string, position: { x: number; y: number }) => void;
   onNodeDelete?: (nodeId: string) => void;
   onNodeClick?: (nodeId: string) => void;
@@ -108,6 +109,7 @@ function CustomNode({ data, id }: { data: any; id: string }) {
 
   const isActive = data.isActive;
   const isError = data.isError;
+  const isSuccess = data.isSuccess;
   const isParallel = data.isParallel;
   const isInteractive = data.isInteractive;
   const hasConfig = data.hasConfig;
@@ -121,8 +123,9 @@ function CustomNode({ data, id }: { data: any; id: string }) {
         px-4 py-3 rounded-lg shadow-lg bg-gradient-to-br ${getColor()}
         text-white min-w-[180px] border-2 relative group
         ${isActive ? 'border-white ring-4 ring-white/40 animate-pulse' : ''}
-        ${isError ? 'border-white ring-4 ring-white/60' : ''}
-        ${!isActive && !isError ? 'border-white/20' : ''}
+        ${isError ? 'border-red-400 ring-4 ring-red-400/40' : ''}
+        ${isSuccess ? 'border-green-400 ring-2 ring-green-400/30' : ''}
+        ${!isActive && !isError && !isSuccess ? 'border-white/20' : ''}
         ${isInteractive ? 'hover:ring-2 hover:ring-white/40 cursor-move' : ''}
       `}
     >
@@ -159,13 +162,13 @@ function CustomNode({ data, id }: { data: any; id: string }) {
       <Handle
         type="target"
         position={Position.Top}
-        className="w-3 h-3 !bg-white border-2 border-gray-400"
+        className="w-3 h-3 !bg-white border-2 border-white"
       />
       {/* Left target handle for left-to-right alignment */}
       <Handle
         type="target"
         position={Position.Left}
-        className="w-3 h-3 !bg-white border-2 border-gray-400"
+        className="w-3 h-3 !bg-white border-2 border-white"
       />
       
       <div className="flex items-center gap-2">
@@ -178,13 +181,13 @@ function CustomNode({ data, id }: { data: any; id: string }) {
       <Handle
         type="source"
         position={Position.Bottom}
-        className="w-3 h-3 !bg-white border-2 border-gray-400"
+        className="w-3 h-3 !bg-white border-2 border-white"
       />
       {/* Right source handle for left-to-right alignment */}
       <Handle
         type="source"
         position={Position.Right}
-        className="w-3 h-3 !bg-white border-2 border-gray-400"
+        className="w-3 h-3 !bg-white border-2 border-white"
       />
     </motion.div>
   );
@@ -253,6 +256,7 @@ export function WorkflowCanvas({
   edges, 
   activeNodeIds = [],
   errorNodeId,
+  successfulNodeIds = [],
   onNodeDragStop,
   onNodeDelete,
   onNodeClick,
@@ -381,20 +385,21 @@ export function WorkflowCanvas({
             x: xPosition, 
             y: yPos
           },
-          data: {
-            label: node.label || node.type.toUpperCase(),
-            type: node.type,
-            action: node.action,
-            delay: layerIndex * 0.2,
-            isActive: activeNodeIds.includes(node.id),
-            isError: node.id === errorNodeId,
-            isParallel: layer.nodes.length > 1,
-            parallelCount: layer.nodes.length,
-            isInteractive: isInteractive,
-            hasConfig: true, // All nodes can be configured
-            onDelete: isInteractive ? handleNodeDelete : undefined,
-            onConfigure: handleNodeConfigure,
-          },
+              data: {
+                label: node.label || node.type.toUpperCase(),
+                type: node.type,
+                action: node.action,
+                delay: layerIndex * 0.2,
+                isActive: activeNodeIds.includes(node.id),
+                isError: node.id === errorNodeId,
+                isSuccess: successfulNodeIds.includes(node.id),
+                isParallel: layer.nodes.length > 1,
+                parallelCount: layer.nodes.length,
+                isInteractive: isInteractive,
+                hasConfig: true, // All nodes can be configured
+                onDelete: isInteractive ? handleNodeDelete : undefined,
+                onConfigure: handleNodeConfigure,
+              },
           sourcePosition: Position.Right,
           targetPosition: Position.Left,
           draggable: isInteractive,
@@ -404,7 +409,7 @@ export function WorkflowCanvas({
     
     // Return nodes in original order for consistent rendering
     return nodes.map(node => nodeMap.get(node.id)!).filter(Boolean);
-  }, [nodes, edges, activeNodeIds, errorNodeId, isInteractive]);
+      }, [nodes, activeNodeIds, errorNodeId, successfulNodeIds, isInteractive, handleNodeDelete, handleNodeConfigure]);
   
   // Convert workflow edges to React Flow edges with beautiful styling
   const flowEdges: Edge[] = useMemo(() => {
@@ -466,8 +471,7 @@ export function WorkflowCanvas({
         onEdgesChange={handleEdgesChange}
         onConnect={handleConnect}
         onNodeDragStop={handleNodeDragStop}
-        fitView
-        fitViewOptions={{ padding: 0.2 }}
+        fitView={false}
         minZoom={0.5}
         maxZoom={1.5}
         nodesDraggable={true}
