@@ -165,7 +165,22 @@ async function executeLLMNode(
   console.log(`📝 Using: ${isExtractionTask || isAnalysisTask ? 'SOURCE' : 'PREVIOUS'} content`);
   console.log(`💬 Prompt: ${prompt.substring(0, 150)}...`);
 
-  return await generateContent(prompt);
+  // Persist prompt for metrics estimation and per-node tracking
+  if (!context.__promptByNodeId) context.__promptByNodeId = {};
+  context.__promptByNodeId[node.id] = prompt;
+
+  const output = await generateContent(prompt);
+  try {
+    console.log('📊 LLM fallback metrics:', {
+      nodeId: node.id,
+      promptChars: prompt.length,
+      outputChars: (output || '').length,
+      estInputTokens: Math.ceil(prompt.length / 4),
+      estOutputTokens: Math.ceil(((output || '').length) / 4),
+      estCostUSD: Math.ceil(prompt.length / 4) * 0.65e-6 + Math.ceil(((output || '').length) / 4) * 0.85e-6,
+    });
+  } catch (e) {}
+  return output;
 }
 
 /**

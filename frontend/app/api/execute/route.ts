@@ -118,6 +118,18 @@ export async function POST(request: NextRequest) {
                   message: `✓ ${node.label || node.type} completed`,
                   output: result.output,
                   timestamp: Date.now(),
+                  ...(node.type === 'llm' ? (() => {
+                    try {
+                      const prompts = (context as any).__promptByNodeId || {};
+                      const promptText = prompts[node.id] || '';
+                      const promptChars = promptText.length;
+                      const outputChars = (result.output || '').toString().length;
+                      const inputTokens = Math.ceil(promptChars / 4);
+                      const outputTokens = Math.ceil(outputChars / 4);
+                      const costUSD = inputTokens * 0.65e-6 + outputTokens * 0.85e-6;
+                      return { metrics: { promptChars, outputChars, inputTokens, outputTokens, costUSD } };
+                    } catch (e) { return {}; }
+                  })() : {})
                 });
               } else {
                 sendEvent({
@@ -126,6 +138,15 @@ export async function POST(request: NextRequest) {
                   message: `✗ ${node.label || node.type} failed: ${result.error}`,
                   error: result.error,
                   timestamp: Date.now(),
+                  ...(node.type === 'llm' ? (() => {
+                    try {
+                      const prompts = (context as any).__promptByNodeId || {};
+                      const promptText = prompts[node.id] || '';
+                      const promptChars = promptText.length;
+                      const inputTokens = Math.ceil(promptChars / 4);
+                      return { metrics: { promptChars, inputTokens } };
+                    } catch (e) { return {}; }
+                  })() : {})
                 });
                 
                 // Stop execution on error

@@ -16,12 +16,22 @@ export async function generateContent(prompt: string): Promise<string> {
 
     const cerebras = createCerebras({ apiKey });
 
-    const { text } = await generateText({
+    const resp = await generateText({
       model: cerebras('llama-4-scout-17b-16e-instruct'),
       prompt: prompt,
     });
 
-    return text;
+    // DEBUG: print all metadata we receive from the API so we can derive tokens/cost
+    try {
+      console.log('🧾 Cerebras raw response (truncated text):', {
+        finishReason: (resp as any)?.finishReason,
+        usage: (resp as any)?.usage,
+        provider: 'cerebras',
+        textPreview: (resp as any)?.text?.slice(0, 200),
+      });
+    } catch (e) {}
+
+    return (resp as any)?.text as string;
   } catch (error: any) {
     console.error('Cerebras generation error:', error);
     throw new Error(`Failed to generate content: ${error.message}`);
