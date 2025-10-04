@@ -6,6 +6,15 @@ import { NextResponse } from 'next/server';
  */
 export async function GET() {
   try {
+    // Check MCP Gateway health
+    let mcpStatus = 'unknown';
+    try {
+      const mcpResponse = await fetch(`${process.env.MCP_GATEWAY_URL || 'http://mcp-gateway:3001'}/health`);
+      mcpStatus = mcpResponse.ok ? 'healthy' : 'unhealthy';
+    } catch {
+      mcpStatus = 'unreachable';
+    }
+
     const health = {
       status: 'healthy',
       timestamp: new Date().toISOString(),
@@ -14,12 +23,14 @@ export async function GET() {
         cerebras: !!process.env.CEREBRAS_API_KEY,
         groq: !!process.env.GROQ_API_KEY,
         notion: !!process.env.NOTION_API_KEY,
+        tavily: !!process.env.TAVILY_API_KEY,
         smtp: !!(
           process.env.SMTP_HOST &&
           process.env.SMTP_PORT &&
           process.env.SMTP_USER &&
           process.env.SMTP_PASSWORD
         ),
+        mcpGateway: mcpStatus,
       },
     };
 

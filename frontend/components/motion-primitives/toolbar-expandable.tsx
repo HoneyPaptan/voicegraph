@@ -8,7 +8,7 @@ import useClickOutside from '@/hooks/useClickOutside';
 import { Folder, MessageCircle, User, WalletCards } from 'lucide-react';
 
 const transition = {
-  type: 'spring',
+  type: 'spring' as const,
   bounce: 0.1,
   duration: 0.25,
 };
@@ -100,7 +100,7 @@ export default function ToolbarExpandable() {
   const [isOpen, setIsOpen] = useState(false);
   const [maxWidth, setMaxWidth] = useState(0);
 
-  useClickOutside(ref, () => {
+  useClickOutside(ref as React.RefObject<HTMLDivElement>, () => {
     setIsOpen(false);
     setActive(null);
   });

@@ -41,12 +41,14 @@ export async function POST(request: Request) {
     const run = workflowHistory.get(workflowId);
     
     if (!run) {
+      console.log(`❌ Workflow ${workflowId} not found in history`);
       return NextResponse.json(
         { error: 'Workflow not found' },
         { status: 404 }
       );
     }
 
+    console.log(`📊 Returning workflow ${workflowId}: status=${run.status}, logs=${run.logs.length}`);
     return NextResponse.json({ 
       success: true,
       run 

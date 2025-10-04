@@ -17,6 +17,8 @@ export const executeWorkflowFunction = inngest.createFunction(
   },
   { event: 'workflow/execute.requested' },
   async ({ event, step }) => {
+    console.log(`🎯 Inngest function triggered with event:`, event);
+    
     const { 
       workflowId, 
       workflow, 
@@ -67,7 +69,17 @@ export const executeWorkflowFunction = inngest.createFunction(
                 timestamp: Date.now(),
               });
 
-              const result = await executeNode(node, context);
+              // Convert serialized File objects back to proper File objects if needed
+              const processedNode = {
+                ...node,
+                uploadedFile: node.uploadedFile ? new File(
+                  [''], // Empty content since we can't reconstruct the original file
+                  node.uploadedFile.name,
+                  { type: node.uploadedFile.type }
+                ) : undefined
+              };
+              
+              const result = await executeNode(processedNode, context);
 
               if (result.success && 'output' in result) {
                 workflowHistory.addLog(workflowId, {
@@ -77,7 +89,7 @@ export const executeWorkflowFunction = inngest.createFunction(
                   timestamp: Date.now(),
                 });
                 
-                return { node, result, success: true };
+                return { node: processedNode, result, success: true };
               } else {
                 const errorMsg = result.error || 'Unknown error';
                 workflowHistory.addLog(workflowId, {
@@ -134,6 +146,7 @@ export const executeWorkflowFunction = inngest.createFunction(
 
       // Step 4: Mark workflow as completed
       await step.run('finalize-workflow', async () => {
+        console.log(`🔄 Updating workflow ${workflowId} status to completed`);
         workflowHistory.updateStatus(workflowId, 'completed');
         workflowHistory.addLog(workflowId, {
           type: 'success',
@@ -141,7 +154,7 @@ export const executeWorkflowFunction = inngest.createFunction(
           message: '✅ Workflow completed successfully',
           timestamp: Date.now(),
         });
-        console.log(`✅ Workflow ${workflowId} completed successfully`);
+        console.log(`✅ Workflow ${workflowId} completed successfully and status updated`);
         return { success: true };
       });
 

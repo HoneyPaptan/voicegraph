@@ -52,8 +52,14 @@ export default function Home() {
 
   // Poll current workflow status if running in background
   useEffect(() => {
-    if (!currentWorkflowId || !useBackgroundExecution) return;
+    console.log(`🔄 Polling effect triggered: currentWorkflowId=${currentWorkflowId}, useBackgroundExecution=${useBackgroundExecution}`);
     
+    if (!currentWorkflowId || !useBackgroundExecution) {
+      console.log(`⏸️ Polling skipped: currentWorkflowId=${currentWorkflowId}, useBackgroundExecution=${useBackgroundExecution}`);
+      return;
+    }
+    
+    console.log(`🚀 Starting polling for workflow ${currentWorkflowId}`);
     let hasCompleted = false; // Track if workflow has reached terminal state
     
     const pollWorkflowStatus = async () => {
@@ -70,6 +76,8 @@ export default function Home() {
         const data = await response.json();
         
         if (data.success && data.run) {
+          console.log(`📊 Polling workflow ${currentWorkflowId}: status=${data.run.status}, logs=${data.run.logs.length}`);
+          
           // Update logs
           setExecutionLogs(data.run.logs);
           
@@ -281,6 +289,13 @@ export default function Home() {
       setIsEditingWorkflow(true);
       setParseError(null);
 
+      // If no existing workflow, create a new one instead
+      if (!workflow || !workflow.nodes || workflow.nodes.length === 0) {
+        console.log('No existing workflow found, creating new workflow instead');
+        await parseWorkflow(text);
+        return;
+      }
+
       const response = await fetch('/api/edit-workflow', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -293,6 +308,12 @@ export default function Home() {
       const data = await response.json();
 
       if (!response.ok) {
+        // If edit fails because no workflow exists, try creating new one
+        if (data.error && data.error.includes('No existing workflow to edit')) {
+          console.log('Edit failed - no existing workflow, creating new one instead');
+          await parseWorkflow(text);
+          return;
+        }
         throw new Error(data.error || 'Failed to edit workflow');
       }
 
@@ -370,8 +391,15 @@ export default function Home() {
 
   // Execute workflow in background (Inngest)
   const executeWorkflowBackground = async (config: Record<string, string>) => {
-    if (!workflow) return;
+    console.log(`🚀 executeWorkflowBackground called with config:`, config);
+    console.log(`🚀 Current workflow:`, workflow);
+    
+    if (!workflow) {
+      console.log(`❌ No workflow to execute`);
+      return;
+    }
 
+    console.log(`🚀 Starting background execution...`);
     setIsExecuting(true);
     setExecutionLogs([]);
     setActiveNodeIds([]);
@@ -379,7 +407,7 @@ export default function Home() {
     setSuccessfulNodeIds([]);
 
     try {
-      const response = await fetch('/api/execute-inngest', {
+      const response = await fetch('/api/execute-background', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -396,6 +424,7 @@ export default function Home() {
       }
 
       // Store workflow ID for tracking
+      console.log(`📝 Setting currentWorkflowId to: ${data.workflowId}`);
       setCurrentWorkflowId(data.workflowId);
       setExecutionStartTime(Date.now());
 

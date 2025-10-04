@@ -5,7 +5,7 @@ import useClickOutside from '@/hooks/useClickOutside';
 import { ArrowLeft, Search, User } from 'lucide-react';
 
 const transition = {
-  type: 'spring',
+  type: 'spring' as const,
   bounce: 0.1,
   duration: 0.2,
 };
@@ -36,9 +36,9 @@ function Button({
 
 export default function ToolbarDynamic() {
   const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
-  useClickOutside(containerRef, () => {
+  useClickOutside(containerRef as React.RefObject<HTMLDivElement>, () => {
     setIsOpen(false);
   });
 

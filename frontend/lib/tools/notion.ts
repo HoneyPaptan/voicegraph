@@ -1,4 +1,5 @@
 import { Client } from '@notionhq/client';
+import { markdownToNotionBlocks, processMarkdownLinks } from './markdown-to-notion';
 
 /**
  * Smart Notion fetcher - automatically detects if ID is a page or database
@@ -505,30 +506,18 @@ Attempted auto-creation failed: ${parentPageResult.error || 'Unknown error'}`,
     if (content && content.trim().length > 0) {
       console.log('📄 Adding content blocks to page...');
       
-      // Split content into paragraphs
-      const paragraphs = content.split('\n').filter(p => p.trim().length > 0);
-      
-      const blocks = paragraphs.map((paragraph) => ({
-        object: 'block' as const,
-        type: 'paragraph' as const,
-        paragraph: {
-          rich_text: [
-            {
-              type: 'text' as const,
-              text: {
-                content: paragraph,
-              },
-            },
-          ],
-        },
-      }));
+      // Process markdown content and convert to Notion blocks
+      const processedContent = processMarkdownLinks(content);
+      const blocks = markdownToNotionBlocks(processedContent);
 
-      await notion.blocks.children.append({
-        block_id: response.id,
-        children: blocks,
-      });
+      if (blocks.length > 0) {
+        await notion.blocks.children.append({
+          block_id: response.id,
+          children: blocks,
+        });
 
-      console.log(`✅ Added ${blocks.length} content blocks`);
+        console.log(`✅ Added ${blocks.length} formatted content blocks`);
+      }
     }
 
     const pageUrl = response.url || `https://notion.so/${response.id.replace(/-/g, '')}`;
@@ -659,35 +648,28 @@ export async function appendToNotionPage(
   const notion = new Client({ auth: notionApiKey });
 
   try {
-    // Split content into paragraphs
-    const paragraphs = content.split('\n').filter(p => p.trim().length > 0);
-    
-    const blocks = paragraphs.map((paragraph) => ({
-      object: 'block' as const,
-      type: 'paragraph' as const,
-      paragraph: {
-        rich_text: [
-          {
-            type: 'text' as const,
-            text: {
-              content: paragraph,
-            },
-          },
-        ],
-      },
-    }));
+    // Process markdown content and convert to Notion blocks
+    const processedContent = processMarkdownLinks(content);
+    const blocks = markdownToNotionBlocks(processedContent);
 
-    await notion.blocks.children.append({
-      block_id: formattedPageId,
-      children: blocks,
-    });
+    if (blocks.length > 0) {
+      await notion.blocks.children.append({
+        block_id: formattedPageId,
+        children: blocks,
+      });
 
-    console.log(`✅ Appended ${blocks.length} blocks to page`);
+      console.log(`✅ Appended ${blocks.length} formatted blocks to page`);
 
-    return {
-      success: true,
-      data: `Successfully appended ${blocks.length} block(s) to the Notion page.`,
-    };
+      return {
+        success: true,
+        data: `Successfully appended ${blocks.length} formatted block(s) to the Notion page.`,
+      };
+    } else {
+      return {
+        success: true,
+        data: 'No content to append (empty or whitespace only).',
+      };
+    }
   } catch (error: any) {
     console.error('❌ Failed to append to Notion page:', error);
     

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion, MotionConfig } from 'motion/react';
 import useMeasure from 'react-use-measure';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { Play, Loader2, Mic, Zap, Type, Square } from 'lucide-react';
 import { VoiceInput } from '@/components/VoiceInput';
 
 const transition = {
-  type: 'spring',
+  type: 'spring' as const,
   bounce: 0.1,
   duration: 0.25,
 };
@@ -43,11 +43,26 @@ export default function WorkflowToolbar({
   const [isOpen, setIsOpen] = React.useState(false);
   const [maxWidth, setMaxWidth] = React.useState(0);
   const [active, setActive] = React.useState<number | null>(null);
+  
+  // Voice recording state
+  const [isRecording, setIsRecording] = React.useState(false);
+  const [isProcessing, setIsProcessing] = React.useState(false);
 
   React.useEffect(() => {
     if (!width || maxWidth > 0) return;
     setMaxWidth(width);
   }, [width, maxWidth]);
+
+  // Handle recording state changes
+  React.useEffect(() => {
+    if (isRecording && active === 2) {
+      // Recording started
+      console.log('Voice recording started');
+    } else if (!isRecording && active === 2) {
+      // Recording stopped
+      console.log('Voice recording stopped');
+    }
+  }, [isRecording, active]);
 
   const handleVoiceTranscribed = async (text: string) => {
     try {
@@ -56,8 +71,19 @@ export default function WorkflowToolbar({
       setActive(null);
     } catch (e) {
       console.error('Voice edit failed:', e);
+    } finally {
+      setIsRecording(false);
+      setIsProcessing(false);
     }
   };
+
+  // Reset recording state when dropdown closes
+  React.useEffect(() => {
+    if (!isOpen) {
+      setIsRecording(false);
+      setIsProcessing(false);
+    }
+  }, [isOpen]);
 
   const ITEMS = [
     {
@@ -79,22 +105,60 @@ export default function WorkflowToolbar({
       ),
       content: (
         <div className="p-3 w-[320px]">
-          <div className="text-xs text-white/70 mb-3">Speak your edit. Recording starts immediately.</div>
+          <div className="text-xs text-white/70 mb-3">
+            {isRecording ? 'Recording... Speak your edit command.' : 
+             'Click to start recording your edit. If no workflow exists, this will create a new one.'}
+          </div>
           <div className="flex flex-col items-center gap-3 w-full">
-            <div className="flex items-center gap-2 w-full justify-center">
+            {!isRecording && !isProcessing && (
               <Button
                 onClick={() => {
-                  // Toggle the expandable content by clicking the mic icon again
-                  setIsOpen(false);
-                  setActive(null);
+                  setIsRecording(true);
                 }}
                 size="sm"
                 className="gap-2 w-full bg-black hover:bg-black/80 text-white"
               >
+                <Mic className="w-4 h-4" />
+                Start Recording
+              </Button>
+            )}
+            
+            {isRecording && (
+              <Button
+                onClick={() => {
+                  setIsRecording(false);
+                }}
+                size="sm"
+                className="gap-2 w-full bg-red-600 hover:bg-red-700 text-white"
+              >
                 <Square className="w-4 h-4" />
                 Stop Recording
               </Button>
-            </div>
+            )}
+            
+            {isProcessing && (
+              <div className="flex items-center gap-2 w-full justify-center">
+                <Loader2 className="w-4 h-4 animate-spin text-white" />
+                <span className="text-white text-sm">Processing...</span>
+              </div>
+            )}
+            
+            {isRecording && (
+              <VoiceInput 
+                onTranscribed={async (text) => {
+                  setIsProcessing(true);
+                  try {
+                    await handleVoiceTranscribed(text);
+                  } finally {
+                    setIsProcessing(false);
+                    setIsOpen(false);
+                    setActive(null);
+                  }
+                }} 
+                isEditMode 
+                autoStart={isRecording}
+              />
+            )}
           </div>
         </div>
       ),
