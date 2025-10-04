@@ -315,8 +315,8 @@ SMTP_USER=your_email@gmail.com
 SMTP_PASSWORD=your_app_password
 
 # New
-TAVILY_API_KEY=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
-GITHUB_API_KEY=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
+TAVILY_API_KEY= your api key
+GITHUB_API_KEY=your api key
 ```
 
 ---
