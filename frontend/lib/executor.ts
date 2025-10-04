@@ -175,6 +175,8 @@ async function executeLLMNode(
 
   console.log(`🤖 LLM Node Action: ${action}`);
   console.log(`📝 Using: ${isExtractionTask || isAnalysisTask ? 'SOURCE' : 'PREVIOUS'} content`);
+  console.log(`📝 Input content length: ${inputContent ? inputContent.length : 0}`);
+  console.log(`📝 Input content preview: ${inputContent ? inputContent.substring(0, 300) + '...' : 'undefined'}`);
   console.log(`💬 Prompt: ${prompt.substring(0, 150)}...`);
 
   // Persist prompt for metrics estimation and per-node tracking
@@ -346,7 +348,11 @@ async function executeTavilyNode(
     if (result.success) {
       // Concatenate with existing output so downstream summarization can see both routes and hotels
       const previous = context.lastOutput ? String(context.lastOutput) + '\n\n' : '';
-      return previous + (result.data || 'No results found');
+      const finalOutput = previous + (result.data || 'No results found');
+      console.log(`🔍 Tavily MCP result - Data length: ${result.data ? result.data.length : 0}`);
+      console.log(`🔍 Tavily MCP result - Final output length: ${finalOutput.length}`);
+      console.log(`🔍 Tavily MCP result - Final output preview: ${finalOutput.substring(0, 300)}...`);
+      return finalOutput;
     } else {
       console.log('⚠️ MCP Tavily failed, falling back to direct API:', result.error);
       const fallbackResult = await searchWeb(query, { maxResults, includeDomains, site });
@@ -357,7 +363,10 @@ async function executeTavilyNode(
 
       // Concatenate with existing output so downstream summarization can see both routes and hotels
       const previous = context.lastOutput ? String(context.lastOutput) + '\n\n' : '';
-      return previous + (fallbackResult.data || '');
+      const finalOutput = previous + (fallbackResult.data || '');
+      console.log(`🔍 Tavily Fallback result - Data length: ${fallbackResult.data ? fallbackResult.data.length : 0}`);
+      console.log(`🔍 Tavily Fallback result - Final output length: ${finalOutput.length}`);
+      return finalOutput;
     }
   } catch (error) {
     console.log('⚠️ MCP Tavily failed, falling back to direct API:', error);
@@ -369,7 +378,10 @@ async function executeTavilyNode(
 
     // Concatenate with existing output so downstream summarization can see both routes and hotels
     const previous = context.lastOutput ? String(context.lastOutput) + '\n\n' : '';
-    return previous + (fallbackResult.data || '');
+    const finalOutput = previous + (fallbackResult.data || '');
+    console.log(`🔍 Tavily Error Fallback result - Data length: ${fallbackResult.data ? fallbackResult.data.length : 0}`);
+    console.log(`🔍 Tavily Error Fallback result - Final output length: ${finalOutput.length}`);
+    return finalOutput;
   }
 }
 

@@ -1,0 +1,554 @@
+{
+  "wf_1759591164358_bmzw3wdl9": {
+    "id": "wf_1759591164358_bmzw3wdl9",
+    "workflow": {
+      "workflowId": "workflow-1759591152074",
+      "nodes": [
+        {
+          "id": "step-0",
+          "type": "prompt",
+          "action": "seed",
+          "label": "Trip Request",
+          "params": {
+            "text": "Enter your destination and (optional) dates. Example: Jaipur, 12-16 Oct."
+          },
+          "position": {
+            "x": 400,
+            "y": 50
+          }
+        },
+        {
+          "id": "step-1",
+          "type": "tavily",
+          "action": "search",
+          "label": "Find Routes",
+          "params": {
+            "query": "fastest and cheapest routes to {input} flights trains buses with booking urls",
+            "maxResults": 5
+          },
+          "position": {
+            "x": 200,
+            "y": 200
+          }
+        },
+        {
+          "id": "step-2",
+          "type": "tavily",
+          "action": "search",
+          "label": "Find Hotels",
+          "params": {
+            "query": "best hotels near {input} city center budget friendly 3-4 star with direct booking urls",
+            "maxResults": 5,
+            "includeDomains": [
+              "booking.com",
+              "hotels.com",
+              "tripadvisor.com"
+            ]
+          },
+          "position": {
+            "x": 600,
+            "y": 200
+          }
+        },
+        {
+          "id": "step-3",
+          "type": "llm",
+          "action": "summarize",
+          "label": "Summarize Itinerary",
+          "params": {
+            "prompt": "Create a trip plan that strictly uses the provided destination and dates from the input; never assume a different city. Include: 1) Fastest route with Google Maps or booking URL; 2) Cheapest viable route with Google Maps or booking URL; 3) A table of 5 hotels (Name, Area, Price range, Direct URL); 4) Short day-by-day outline. If info is missing, say \"Not found\" instead of assuming."
+          },
+          "position": {
+            "x": 400,
+            "y": 350
+          }
+        },
+        {
+          "id": "step-4",
+          "type": "email",
+          "action": "send",
+          "label": "Email Plan",
+          "params": {
+            "subject": "Your Trip Plan"
+          },
+          "position": {
+            "x": 400,
+            "y": 500
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "edge-0",
+          "source": "step-0",
+          "target": "step-1"
+        },
+        {
+          "id": "edge-1",
+          "source": "step-1",
+          "target": "step-3"
+        },
+        {
+          "id": "edge-2",
+          "source": "step-0",
+          "target": "step-2"
+        },
+        {
+          "id": "edge-3",
+          "source": "step-2",
+          "target": "step-3"
+        },
+        {
+          "id": "edge-4",
+          "source": "step-3",
+          "target": "step-4"
+        }
+      ]
+    },
+    "config": {
+      "notionPageId": "",
+      "recipientEmail": "hpaptan6@gmail.com",
+      "githubRepoUrl": ""
+    },
+    "status": "completed",
+    "logs": [
+      {
+        "type": "progress",
+        "nodeId": "step-0",
+        "message": "Executing Trip Request...",
+        "timestamp": 1759591164361
+      },
+      {
+        "type": "success",
+        "nodeId": "step-0",
+        "message": "✓ Trip Request completed",
+        "timestamp": 1759591164363
+      },
+      {
+        "type": "progress",
+        "nodeId": "step-1",
+        "message": "Executing Find Routes...",
+        "timestamp": 1759591164364
+      },
+      {
+        "type": "progress",
+        "nodeId": "step-2",
+        "message": "Executing Find Hotels...",
+        "timestamp": 1759591164367
+      },
+      {
+        "type": "success",
+        "nodeId": "step-2",
+        "message": "✓ Find Hotels completed",
+        "timestamp": 1759591166520
+      },
+      {
+        "type": "success",
+        "nodeId": "step-1",
+        "message": "✓ Find Routes completed",
+        "timestamp": 1759591167030
+      },
+      {
+        "type": "progress",
+        "nodeId": "step-3",
+        "message": "Executing Summarize Itinerary...",
+        "timestamp": 1759591167030
+      },
+      {
+        "type": "success",
+        "nodeId": "step-3",
+        "message": "✓ Summarize Itinerary completed",
+        "timestamp": 1759591168181
+      },
+      {
+        "type": "progress",
+        "nodeId": "step-4",
+        "message": "Executing Email Plan...",
+        "timestamp": 1759591168181
+      },
+      {
+        "type": "success",
+        "nodeId": "step-4",
+        "message": "✓ Email Plan completed",
+        "timestamp": 1759591174805
+      },
+      {
+        "type": "success",
+        "nodeId": "system",
+        "message": "✅ Workflow completed successfully",
+        "timestamp": 1759591174862
+      }
+    ],
+    "startTime": "2025-10-04T15:19:24.358Z",
+    "transcribedText": "",
+    "endTime": "2025-10-04T15:19:34.857Z"
+  },
+  "wf_1759591281058_99vv5gf2k": {
+    "id": "wf_1759591281058_99vv5gf2k",
+    "workflow": {
+      "workflowId": "workflow-1759591240995",
+      "nodes": [
+        {
+          "id": "step-0",
+          "type": "prompt",
+          "action": "seed",
+          "label": "Trip Request",
+          "params": {
+            "text": "Jaipur. From 4th to 10thOct"
+          },
+          "position": {
+            "x": 398,
+            "y": 60
+          }
+        },
+        {
+          "id": "step-1",
+          "type": "tavily",
+          "action": "search",
+          "label": "Find Routes",
+          "params": {
+            "query": "fastest and cheapest routes to {input} flights trains buses with booking urls",
+            "maxResults": 5
+          },
+          "position": {
+            "x": 200,
+            "y": 200
+          }
+        },
+        {
+          "id": "step-2",
+          "type": "tavily",
+          "action": "search",
+          "label": "Find Hotels",
+          "params": {
+            "query": "best hotels near {input} city center budget friendly 3-4 star with direct booking urls",
+            "maxResults": 5,
+            "includeDomains": [
+              "booking.com",
+              "hotels.com",
+              "tripadvisor.com"
+            ]
+          },
+          "position": {
+            "x": 599,
+            "y": 202
+          }
+        },
+        {
+          "id": "step-3",
+          "type": "llm",
+          "action": "summarize",
+          "label": "Summarize Itinerary",
+          "params": {
+            "prompt": "Create a trip plan that strictly uses the provided destination and dates from the input; never assume a different city. Include: 1) Fastest route with Google Maps or booking URL; 2) Cheapest viable route with Google Maps or booking URL; 3) A table of 5 hotels (Name, Area, Price range, Direct URL); 4) Short day-by-day outline. If info is missing, say \"Not found\" instead of assuming."
+          },
+          "position": {
+            "x": 400,
+            "y": 350
+          }
+        },
+        {
+          "id": "step-4",
+          "type": "email",
+          "action": "send",
+          "label": "Email Plan",
+          "params": {
+            "subject": "Your Trip Plan"
+          },
+          "position": {
+            "x": 400,
+            "y": 500
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "edge-0",
+          "source": "step-0",
+          "target": "step-1"
+        },
+        {
+          "id": "edge-1",
+          "source": "step-1",
+          "target": "step-3"
+        },
+        {
+          "id": "edge-2",
+          "source": "step-0",
+          "target": "step-2"
+        },
+        {
+          "id": "edge-3",
+          "source": "step-2",
+          "target": "step-3"
+        },
+        {
+          "id": "edge-4",
+          "source": "step-3",
+          "target": "step-4"
+        }
+      ]
+    },
+    "config": {
+      "notionPageId": "",
+      "recipientEmail": "hpaptan6@gmail.com",
+      "githubRepoUrl": ""
+    },
+    "status": "completed",
+    "logs": [
+      {
+        "type": "progress",
+        "nodeId": "step-0",
+        "message": "Executing Trip Request...",
+        "timestamp": 1759591281059
+      },
+      {
+        "type": "success",
+        "nodeId": "step-0",
+        "message": "✓ Trip Request completed",
+        "timestamp": 1759591281060
+      },
+      {
+        "type": "progress",
+        "nodeId": "step-1",
+        "message": "Executing Find Routes...",
+        "timestamp": 1759591281061
+      },
+      {
+        "type": "progress",
+        "nodeId": "step-2",
+        "message": "Executing Find Hotels...",
+        "timestamp": 1759591281062
+      },
+      {
+        "type": "success",
+        "nodeId": "step-1",
+        "message": "✓ Find Routes completed",
+        "timestamp": 1759591283791
+      },
+      {
+        "type": "success",
+        "nodeId": "step-2",
+        "message": "✓ Find Hotels completed",
+        "timestamp": 1759591286735
+      },
+      {
+        "type": "progress",
+        "nodeId": "step-3",
+        "message": "Executing Summarize Itinerary...",
+        "timestamp": 1759591286736
+      },
+      {
+        "type": "success",
+        "nodeId": "step-3",
+        "message": "✓ Summarize Itinerary completed",
+        "timestamp": 1759591287610
+      },
+      {
+        "type": "progress",
+        "nodeId": "step-4",
+        "message": "Executing Email Plan...",
+        "timestamp": 1759591287611
+      },
+      {
+        "type": "success",
+        "nodeId": "step-4",
+        "message": "✓ Email Plan completed",
+        "timestamp": 1759591294364
+      },
+      {
+        "type": "success",
+        "nodeId": "system",
+        "message": "✅ Workflow completed successfully",
+        "timestamp": 1759591294366
+      }
+    ],
+    "startTime": "2025-10-04T15:21:21.058Z",
+    "transcribedText": "",
+    "endTime": "2025-10-04T15:21:34.365Z"
+  },
+  "wf_1759591462700_q7aa83yhe": {
+    "id": "wf_1759591462700_q7aa83yhe",
+    "workflow": {
+      "workflowId": "workflow-1759591431573",
+      "nodes": [
+        {
+          "id": "step-0",
+          "type": "prompt",
+          "action": "seed",
+          "label": "Trip Request",
+          "params": {
+            "text": "Jaipur. From 6th Oct to 10th Oct"
+          },
+          "position": {
+            "x": 400,
+            "y": 50
+          }
+        },
+        {
+          "id": "step-1",
+          "type": "tavily",
+          "action": "search",
+          "label": "Find Routes",
+          "params": {
+            "query": "fastest and cheapest routes to {input} flights trains buses with booking urls",
+            "maxResults": 5
+          },
+          "position": {
+            "x": 200,
+            "y": 200
+          }
+        },
+        {
+          "id": "step-2",
+          "type": "tavily",
+          "action": "search",
+          "label": "Find Hotels",
+          "params": {
+            "query": "best hotels near {input} city center budget friendly 3-4 star with direct booking urls",
+            "maxResults": 5,
+            "includeDomains": [
+              "booking.com",
+              "hotels.com",
+              "tripadvisor.com"
+            ]
+          },
+          "position": {
+            "x": 600,
+            "y": 200
+          }
+        },
+        {
+          "id": "step-3",
+          "type": "llm",
+          "action": "summarize",
+          "label": "Summarize Itinerary",
+          "params": {
+            "prompt": "Create a trip plan that strictly uses the provided destination and dates from the input; never assume a different city. Include: 1) Fastest route with Google Maps or booking URL; 2) Cheapest viable route with Google Maps or booking URL; 3) A table of 5 hotels (Name, Area, Price range, Direct URL); 4) Short day-by-day outline. If info is missing, say \"Not found\" instead of assuming."
+          },
+          "position": {
+            "x": 400,
+            "y": 350
+          }
+        },
+        {
+          "id": "step-4",
+          "type": "email",
+          "action": "send",
+          "label": "Email Plan",
+          "params": {
+            "subject": "Your Trip Plan"
+          },
+          "position": {
+            "x": 400,
+            "y": 500
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "edge-0",
+          "source": "step-0",
+          "target": "step-1"
+        },
+        {
+          "id": "edge-1",
+          "source": "step-1",
+          "target": "step-3"
+        },
+        {
+          "id": "edge-2",
+          "source": "step-0",
+          "target": "step-2"
+        },
+        {
+          "id": "edge-3",
+          "source": "step-2",
+          "target": "step-3"
+        },
+        {
+          "id": "edge-4",
+          "source": "step-3",
+          "target": "step-4"
+        }
+      ]
+    },
+    "config": {
+      "notionPageId": "",
+      "recipientEmail": "hpaptan6@gmail.com",
+      "githubRepoUrl": ""
+    },
+    "status": "completed",
+    "logs": [
+      {
+        "type": "progress",
+        "nodeId": "step-0",
+        "message": "Executing Trip Request...",
+        "timestamp": 1759591462706
+      },
+      {
+        "type": "success",
+        "nodeId": "step-0",
+        "message": "✓ Trip Request completed",
+        "timestamp": 1759591462711
+      },
+      {
+        "type": "progress",
+        "nodeId": "step-1",
+        "message": "Executing Find Routes...",
+        "timestamp": 1759591462712
+      },
+      {
+        "type": "progress",
+        "nodeId": "step-2",
+        "message": "Executing Find Hotels...",
+        "timestamp": 1759591462715
+      },
+      {
+        "type": "success",
+        "nodeId": "step-2",
+        "message": "✓ Find Hotels completed",
+        "timestamp": 1759591465963
+      },
+      {
+        "type": "success",
+        "nodeId": "step-1",
+        "message": "✓ Find Routes completed",
+        "timestamp": 1759591467367
+      },
+      {
+        "type": "progress",
+        "nodeId": "step-3",
+        "message": "Executing Summarize Itinerary...",
+        "timestamp": 1759591467368
+      },
+      {
+        "type": "success",
+        "nodeId": "step-3",
+        "message": "✓ Summarize Itinerary completed",
+        "timestamp": 1759591468743
+      },
+      {
+        "type": "progress",
+        "nodeId": "step-4",
+        "message": "Executing Email Plan...",
+        "timestamp": 1759591468744
+      },
+      {
+        "type": "success",
+        "nodeId": "step-4",
+        "message": "✓ Email Plan completed",
+        "timestamp": 1759591475971
+      },
+      {
+        "type": "success",
+        "nodeId": "system",
+        "message": "✅ Workflow completed successfully",
+        "timestamp": 1759591475975
+      }
+    ],
+    "startTime": "2025-10-04T15:24:22.700Z",
+    "transcribedText": "",
+    "endTime": "2025-10-04T15:24:35.973Z"
+  }
+}

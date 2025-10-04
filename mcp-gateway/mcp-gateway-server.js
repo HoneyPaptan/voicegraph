@@ -320,6 +320,11 @@ async function fetchNotionPage(pageId) {
 }
 
 async function createNotionPageDirect(parentId, title, content, properties) {
+  console.log(`📝 Notion API Key present: ${!!process.env.NOTION_API_KEY}`);
+  console.log(`📝 Notion API Key length: ${process.env.NOTION_API_KEY ? process.env.NOTION_API_KEY.length : 0}`);
+  console.log(`📝 Parent ID: ${parentId}`);
+  console.log(`📝 Title: ${title}`);
+  
   const response = await fetch('https://api.notion.com/v1/pages', {
     method: 'POST',
     headers: {
@@ -337,18 +342,24 @@ async function createNotionPageDirect(parentId, title, content, properties) {
     })
   });
   
+  console.log(`📝 Notion API Response Status: ${response.status}`);
+  
   if (!response.ok) {
-    throw new Error(`Notion API error: ${response.status}`);
+    const errorText = await response.text();
+    console.log(`📝 Notion API Error Response: ${errorText}`);
+    throw new Error(`Notion API error: ${response.status} - ${errorText}`);
   }
   
   const result = await response.json();
+  console.log(`📝 Notion Page Created: ${result.id}`);
   
   // Add content if provided - convert markdown to Notion blocks
   if (content) {
     const blocks = markdownToNotionBlocks(content);
+    console.log(`📝 Converting content to ${blocks.length} Notion blocks`);
     
     if (blocks.length > 0) {
-      await fetch(`https://api.notion.com/v1/blocks/${result.id}/children`, {
+      const blockResponse = await fetch(`https://api.notion.com/v1/blocks/${result.id}/children`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${process.env.NOTION_API_KEY}`,
@@ -357,6 +368,14 @@ async function createNotionPageDirect(parentId, title, content, properties) {
         },
         body: JSON.stringify({ children: blocks })
       });
+      
+      if (!blockResponse.ok) {
+        const blockErrorText = await blockResponse.text();
+        console.log(`📝 Notion Block API Error: ${blockErrorText}`);
+        // Don't throw here, just log the error
+      } else {
+        console.log(`📝 Successfully added ${blocks.length} blocks to Notion page`);
+      }
     }
   }
   
@@ -404,6 +423,9 @@ async function appendToNotionPageDirect(pageId, content) {
  * Direct Tavily API calls
  */
 async function searchWebDirect(query, options = {}) {
+  console.log(`🔍 Tavily API Key present: ${!!process.env.TAVILY_API_KEY}`);
+  console.log(`🔍 Tavily API Key length: ${process.env.TAVILY_API_KEY ? process.env.TAVILY_API_KEY.length : 0}`);
+  
   const response = await fetch('https://api.tavily.com/search', {
     method: 'POST',
     headers: {
@@ -414,15 +436,22 @@ async function searchWebDirect(query, options = {}) {
       query,
       max_results: options.maxResults || 5,
       search_depth: 'basic',
-      include_answer: true
+      include_answer: true,
+      include_domains: options.includeDomains || [],
+      include_site: options.site || null
     })
   });
   
+  console.log(`🔍 Tavily API Response Status: ${response.status}`);
+  
   if (!response.ok) {
-    throw new Error(`Tavily API error: ${response.status}`);
+    const errorText = await response.text();
+    console.log(`🔍 Tavily API Error Response: ${errorText}`);
+    throw new Error(`Tavily API error: ${response.status} - ${errorText}`);
   }
   
   const data = await response.json();
+  console.log(`🔍 Tavily API Response Data:`, JSON.stringify(data, null, 2));
   
   let formattedResults = `# Search Results for "${query}"\n\n`;
   
@@ -430,15 +459,25 @@ async function searchWebDirect(query, options = {}) {
     formattedResults += `## Quick Answer\n${data.answer}\n\n`;
   }
   
-  formattedResults += `## Top ${data.results.length} Results\n\n`;
-  
-  data.results.forEach((result, index) => {
-    formattedResults += `### ${index + 1}. ${result.title}\n`;
-    formattedResults += `**Source:** ${result.url}\n`;
-    formattedResults += `**Relevance Score:** ${(result.score * 100).toFixed(1)}%\n\n`;
-    formattedResults += `${result.content}\n\n`;
-    formattedResults += `---\n\n`;
-  });
+  if (data.results && data.results.length > 0) {
+    formattedResults += `## Top ${data.results.length} Results\n\n`;
+    
+    data.results.forEach((result, index) => {
+      formattedResults += `### ${index + 1}. ${result.title}\n`;
+      formattedResults += `**Source:** ${result.url}\n`;
+      formattedResults += `**Relevance Score:** ${(result.score * 100).toFixed(1)}%\n\n`;
+      formattedResults += `${result.content}\n\n`;
+      formattedResults += `---\n\n`;
+    });
+  } else {
+    formattedResults += `## No Results Found\n\n`;
+    formattedResults += `No search results were returned for the query: "${query}"\n\n`;
+    formattedResults += `This could be due to:\n`;
+    formattedResults += `- Invalid API key\n`;
+    formattedResults += `- Network connectivity issues\n`;
+    formattedResults += `- Query too specific or complex\n`;
+    formattedResults += `- API rate limiting\n\n`;
+  }
   
   return {
     success: true,

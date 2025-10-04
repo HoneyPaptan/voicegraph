@@ -94,7 +94,19 @@ async function executeWorkflowInBackground(
             timestamp: Date.now(),
           });
 
+          console.log(`🔍 Executing node ${node.id} (${node.type}) with context:`, {
+            lastOutput: context.lastOutput ? context.lastOutput.substring(0, 200) + '...' : 'undefined',
+            sourceContent: context.sourceContent ? context.sourceContent.substring(0, 200) + '...' : 'undefined',
+            outputs: Object.keys(context.outputs || {})
+          });
+
           const result = await executeNode(node, context);
+
+          console.log(`🔍 Node ${node.id} result:`, {
+            success: result.success,
+            outputLength: result.output ? result.output.length : 0,
+            outputPreview: result.output ? result.output.substring(0, 200) + '...' : 'undefined'
+          });
 
           if (result.success && 'output' in result) {
             workflowHistory.addLog(workflowId, {

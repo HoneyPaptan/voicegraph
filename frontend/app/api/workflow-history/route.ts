@@ -7,6 +7,12 @@ import { workflowHistory } from '@/lib/workflow-history';
  */
 export async function GET() {
   try {
+    // Reload history to sync with other processes
+    workflowHistory.reload();
+    
+    // Clean up any corrupted entries
+    workflowHistory.cleanup();
+    
     const history = workflowHistory.getAll();
     
     return NextResponse.json({ 
@@ -38,6 +44,12 @@ export async function POST(request: Request) {
       );
     }
 
+    // Reload history to sync with other processes
+    workflowHistory.reload();
+    
+    // Clean up any corrupted entries
+    workflowHistory.cleanup();
+    
     const run = workflowHistory.get(workflowId);
     
     if (!run) {

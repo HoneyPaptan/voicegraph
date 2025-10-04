@@ -27,6 +27,16 @@ export const executeWorkflowFunction = inngest.createFunction(
 
     console.log(`🚀 Starting Inngest workflow execution: ${workflowId}`);
 
+    // Reload history to sync with other processes
+    workflowHistory.reload();
+    
+    // Ensure workflow exists in history before proceeding
+    const existingWorkflow = workflowHistory.get(workflowId);
+    if (!existingWorkflow) {
+      console.log(`⚠️ Workflow ${workflowId} not found in history, creating it...`);
+      workflowHistory.create(workflowId, workflow, config, event.data.transcribedText);
+    }
+
     // Update workflow status to running
     workflowHistory.updateStatus(workflowId, 'running');
 
@@ -62,12 +72,16 @@ export const executeWorkflowFunction = inngest.createFunction(
           // Execute all nodes in this layer in parallel
           const results = await Promise.all(
             layer.nodes.map(async (node) => {
-              workflowHistory.addLog(workflowId, {
-                type: 'progress',
-                nodeId: node.id,
-                message: `Executing ${node.label || node.type}...`,
-                timestamp: Date.now(),
-              });
+              try {
+                workflowHistory.addLog(workflowId, {
+                  type: 'progress',
+                  nodeId: node.id,
+                  message: `Executing ${node.label || node.type}...`,
+                  timestamp: Date.now(),
+                });
+              } catch (logError) {
+                console.warn(`⚠️ Failed to add progress log for workflow ${workflowId}:`, logError);
+              }
 
               // Convert serialized File objects back to proper File objects if needed
               const processedNode = {
@@ -82,22 +96,30 @@ export const executeWorkflowFunction = inngest.createFunction(
               const result = await executeNode(processedNode, context);
 
               if (result.success && 'output' in result) {
-                workflowHistory.addLog(workflowId, {
-                  type: 'success',
-                  nodeId: node.id,
-                  message: `✓ ${node.label || node.type} completed`,
-                  timestamp: Date.now(),
-                });
+                try {
+                  workflowHistory.addLog(workflowId, {
+                    type: 'success',
+                    nodeId: node.id,
+                    message: `✓ ${node.label || node.type} completed`,
+                    timestamp: Date.now(),
+                  });
+                } catch (logError) {
+                  console.warn(`⚠️ Failed to add success log for workflow ${workflowId}:`, logError);
+                }
                 
                 return { node: processedNode, result, success: true };
               } else {
                 const errorMsg = result.error || 'Unknown error';
-                workflowHistory.addLog(workflowId, {
-                  type: 'error',
-                  nodeId: node.id,
-                  message: `✗ ${errorMsg}`,
-                  timestamp: Date.now(),
-                });
+                try {
+                  workflowHistory.addLog(workflowId, {
+                    type: 'error',
+                    nodeId: node.id,
+                    message: `✗ ${errorMsg}`,
+                    timestamp: Date.now(),
+                  });
+                } catch (logError) {
+                  console.warn(`⚠️ Failed to add error log for workflow ${workflowId}:`, logError);
+                }
                 throw new Error(errorMsg);
               }
             })
@@ -147,14 +169,18 @@ export const executeWorkflowFunction = inngest.createFunction(
       // Step 4: Mark workflow as completed
       await step.run('finalize-workflow', async () => {
         console.log(`🔄 Updating workflow ${workflowId} status to completed`);
-        workflowHistory.updateStatus(workflowId, 'completed');
-        workflowHistory.addLog(workflowId, {
-          type: 'success',
-          nodeId: 'system',
-          message: '✅ Workflow completed successfully',
-          timestamp: Date.now(),
-        });
-        console.log(`✅ Workflow ${workflowId} completed successfully and status updated`);
+        try {
+          workflowHistory.updateStatus(workflowId, 'completed');
+          workflowHistory.addLog(workflowId, {
+            type: 'success',
+            nodeId: 'system',
+            message: '✅ Workflow completed successfully',
+            timestamp: Date.now(),
+          });
+          console.log(`✅ Workflow ${workflowId} completed successfully and status updated`);
+        } catch (historyError) {
+          console.warn(`⚠️ Failed to update workflow history for ${workflowId}:`, historyError);
+        }
         return { success: true };
       });
 
@@ -169,7 +195,11 @@ export const executeWorkflowFunction = inngest.createFunction(
       
       // Mark workflow as failed
       await step.run('mark-failed', async () => {
-        workflowHistory.updateStatus(workflowId, 'failed', error.message);
+        try {
+          workflowHistory.updateStatus(workflowId, 'failed', error.message);
+        } catch (historyError) {
+          console.warn(`⚠️ Failed to update workflow history for ${workflowId}:`, historyError);
+        }
         return { success: false };
       });
 

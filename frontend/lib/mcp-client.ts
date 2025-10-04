@@ -126,7 +126,7 @@ export class NotionMCPClient {
 
       return {
         success: true,
-        data: result.content || 'Empty page'
+        data: result.data || result.content || 'Empty page'
       };
     } catch (error: any) {
       return {
@@ -147,7 +147,7 @@ export class NotionMCPClient {
 
       return {
         success: true,
-        data: result.content || 'Empty database'
+        data: result.data || result.content || 'Empty database'
       };
     } catch (error: any) {
       return {
@@ -171,7 +171,7 @@ export class NotionMCPClient {
 
       return {
         success: true,
-        data: result.message || 'Page created successfully',
+        data: result.data || result.message || 'Page created successfully',
         pageUrl: result.pageUrl
       };
     } catch (error: any) {
@@ -194,7 +194,7 @@ export class NotionMCPClient {
 
       return {
         success: true,
-        data: result.message || 'Content appended successfully'
+        data: result.data || result.message || 'Content appended successfully'
       };
     } catch (error: any) {
       return {
@@ -233,7 +233,7 @@ export class TavilyMCPClient {
 
       return {
         success: true,
-        data: result.content || 'No results found'
+        data: result.data || result.content || 'No results found'
       };
     } catch (error: any) {
       return {
@@ -255,7 +255,7 @@ export class TavilyMCPClient {
 
       return {
         success: true,
-        data: result.content || 'No data extracted'
+        data: result.data || result.content || 'No data extracted'
       };
     } catch (error: any) {
       return {
