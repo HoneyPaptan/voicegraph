@@ -3,13 +3,9 @@
 import { useMemo, useState } from 'react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
+import { ExecutionLog } from '@/lib/types';
 
-interface LogItem {
-  nodeId: string;
-  type: 'progress' | 'success' | 'error' | 'info';
-  message: string;
-  timestamp: number;
-}
+interface LogItem extends ExecutionLog {}
 
 interface VisualDebuggerProps {
   open: boolean;

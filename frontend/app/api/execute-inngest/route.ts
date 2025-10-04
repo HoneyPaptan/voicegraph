@@ -26,15 +26,23 @@ export async function POST(request: NextRequest) {
     console.log(`🚀 Triggering Inngest workflow: ${workflowId}`);
 
     // Send event to Inngest for background processing
-    await inngest.send({
-      name: 'workflow/execute.requested',
-      data: {
-        workflowId,
-        workflow,
-        config,
-        transcribedText,
-      },
-    });
+    console.log(`📤 Sending event to Inngest for workflow ${workflowId}`);
+    try {
+      const eventResult = await inngest.send({
+        name: 'workflow/execute.requested',
+        data: {
+          workflowId,
+          workflow,
+          config,
+          transcribedText,
+        },
+      });
+      
+      console.log(`📤 Inngest event sent successfully:`, eventResult);
+    } catch (eventError) {
+      console.error(`❌ Failed to send Inngest event:`, eventError);
+      throw eventError;
+    }
 
     return NextResponse.json({
       success: true,

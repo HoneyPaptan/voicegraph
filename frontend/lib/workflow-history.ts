@@ -61,6 +61,7 @@ class WorkflowHistory {
         return;
       }
       
+      const oldStatus = run.status;
       run.status = status;
       if (status === 'completed' || status === 'failed') {
         run.endTime = new Date();
@@ -68,7 +69,9 @@ class WorkflowHistory {
       if (error) {
         run.error = error;
       }
-      console.log(`🔄 Updated workflow ${id} status: ${status}`);
+      console.log(`🔄 Updated workflow ${id} status: ${oldStatus} → ${status}`);
+    } else {
+      console.log(`❌ Workflow ${id} not found in history when trying to update status to ${status}`);
     }
   }
 

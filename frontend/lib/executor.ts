@@ -5,6 +5,7 @@ import { generateContent } from './cerebras';
 import { searchWeb, extractWebData } from './tools/tavily';
 import { getGitHubRepos, getGitHubIssues, createGitHubIssue } from './tools/github';
 import { processUploadedFile, FileUploadResult } from './tools/file-upload';
+import { notionMCP, tavilyMCP } from './mcp-client';
 
 /**
  * Executes a single workflow node
@@ -73,7 +74,7 @@ export async function executeNode(
 }
 
 /**
- * Executes a Notion node
+ * Executes a Notion node using MCP
  * Uses smart fetcher that auto-detects page vs database
  */
 async function executeNotionNode(
@@ -91,10 +92,21 @@ async function executeNotionNode(
     throw new Error('Notion Page/Database ID not provided. Please enter it in the configuration modal.');
   }
 
-  console.log(`📄 Notion node action: ${action}, using smart fetcher for ID: ${notionId}`);
+  console.log(`📄 Notion MCP node action: ${action}, using smart fetcher for ID: ${notionId}`);
   
-  // Smart fetcher automatically handles both pages and databases
-  return await fetchNotion(notionId);
+  // Try MCP first, fallback to direct API
+  try {
+    const result = await notionMCP.fetchPage(notionId);
+    if (result.success) {
+      return result.data || 'Empty page';
+    } else {
+      console.log('⚠️ MCP Notion failed, falling back to direct API:', result.error);
+      return await fetchNotion(notionId);
+    }
+  } catch (error) {
+    console.log('⚠️ MCP Notion failed, falling back to direct API:', error);
+    return await fetchNotion(notionId);
+  }
 }
 
 /**
@@ -214,7 +226,7 @@ async function executeNotionCreateNode(
 ): Promise<string> {
   const { action, params } = node;
 
-  console.log(`📝 Notion Create node action: ${action}`);
+  console.log(`📝 Notion Create MCP node action: ${action}`);
 
   if (action === 'create_page') {
     // Try to get parent ID - prioritize user config, then env default, then null
@@ -229,13 +241,35 @@ async function executeNotionCreateNode(
     console.log(`📝 Using default database: ${process.env.NOTION_PAGE_DEFAULT_ID ? 'Yes' : 'No'}`);
     console.log(`📝 Title: "${title}"`);
 
-    const result = await createNotionPage(parentId, title, content);
-    
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to create Notion page');
+    // Try MCP first, fallback to direct API
+    try {
+      const result = await notionMCP.createPage({
+        parentId,
+        title,
+        content,
+        properties: params?.properties
+      });
+      
+      if (result.success) {
+        return result.data || 'Page created successfully';
+      } else {
+        console.log('⚠️ MCP Notion Create failed, falling back to direct API:', result.error);
+        const fallbackResult = await createNotionPage(parentId, title, content);
+        
+        if (!fallbackResult.success) {
+          throw new Error(fallbackResult.error || 'Failed to create Notion page');
+        }
+        return fallbackResult.data || 'Page created successfully';
+      }
+    } catch (error) {
+      console.log('⚠️ MCP Notion Create failed, falling back to direct API:', error);
+      const fallbackResult = await createNotionPage(parentId, title, content);
+      
+      if (!fallbackResult.success) {
+        throw new Error(fallbackResult.error || 'Failed to create Notion page');
+      }
+      return fallbackResult.data || 'Page created successfully';
     }
-
-    return result.data || 'Page created successfully';
   } 
   else if (action === 'append_to_page') {
     const pageId = context.notionPageId || params?.pageId;
@@ -245,13 +279,30 @@ async function executeNotionCreateNode(
       throw new Error('Notion Page ID not provided for appending content');
     }
 
-    const result = await appendToNotionPage(pageId, content);
-    
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to append to Notion page');
+    // Try MCP first, fallback to direct API
+    try {
+      const result = await notionMCP.appendToPage(pageId, content);
+      
+      if (result.success) {
+        return result.data || 'Content appended successfully';
+      } else {
+        console.log('⚠️ MCP Notion Append failed, falling back to direct API:', result.error);
+        const fallbackResult = await appendToNotionPage(pageId, content);
+        
+        if (!fallbackResult.success) {
+          throw new Error(fallbackResult.error || 'Failed to append to Notion page');
+        }
+        return fallbackResult.data || 'Content appended successfully';
+      }
+    } catch (error) {
+      console.log('⚠️ MCP Notion Append failed, falling back to direct API:', error);
+      const fallbackResult = await appendToNotionPage(pageId, content);
+      
+      if (!fallbackResult.success) {
+        throw new Error(fallbackResult.error || 'Failed to append to Notion page');
+      }
+      return fallbackResult.data || 'Content appended successfully';
     }
-
-    return result.data || 'Content appended successfully';
   }
   else {
     throw new Error(`Unknown Notion create action: ${action}`);
@@ -267,7 +318,7 @@ async function executeTavilyNode(
 ): Promise<string> {
   const { action, params } = node;
 
-  console.log(`🔍 Tavily node action: ${action}`);
+  console.log(`🔍 Tavily MCP node action: ${action}`);
 
   // Build query with simple placeholder replacement from previous user input
   let query = params?.query || params?.search_query || '';
@@ -289,15 +340,37 @@ async function executeTavilyNode(
   const includeDomains = params?.includeDomains || params?.include_domains;
   const site = params?.site;
 
-  const result = await searchWeb(query, { maxResults, includeDomains, site });
+  // Try MCP first, fallback to direct API
+  try {
+    const result = await tavilyMCP.searchWeb(query, { maxResults, includeDomains, site });
+    if (result.success) {
+      // Concatenate with existing output so downstream summarization can see both routes and hotels
+      const previous = context.lastOutput ? String(context.lastOutput) + '\n\n' : '';
+      return previous + (result.data || 'No results found');
+    } else {
+      console.log('⚠️ MCP Tavily failed, falling back to direct API:', result.error);
+      const fallbackResult = await searchWeb(query, { maxResults, includeDomains, site });
+      
+      if (!fallbackResult.success) {
+        throw new Error(fallbackResult.error || 'Web search failed');
+      }
 
-  if (!result.success) {
-    throw new Error(result.error || 'Web search failed');
+      // Concatenate with existing output so downstream summarization can see both routes and hotels
+      const previous = context.lastOutput ? String(context.lastOutput) + '\n\n' : '';
+      return previous + (fallbackResult.data || '');
+    }
+  } catch (error) {
+    console.log('⚠️ MCP Tavily failed, falling back to direct API:', error);
+    const fallbackResult = await searchWeb(query, { maxResults, includeDomains, site });
+    
+    if (!fallbackResult.success) {
+      throw new Error(fallbackResult.error || 'Web search failed');
+    }
+
+    // Concatenate with existing output so downstream summarization can see both routes and hotels
+    const previous = context.lastOutput ? String(context.lastOutput) + '\n\n' : '';
+    return previous + (fallbackResult.data || '');
   }
-
-  // Concatenate with existing output so downstream summarization can see both routes and hotels
-  const previous = context.lastOutput ? String(context.lastOutput) + '\n\n' : '';
-  return previous + (result.data || '');
 }
 
 /**
@@ -417,7 +490,7 @@ async function executeFileUploadNode(
     hasFileContent: !!node.fileContent, 
     fileContentLength: node.fileContent?.length,
     hasUploadedFile: !!node.uploadedFile,
-    params: Object.keys(params)
+    params: Object.keys(params || {})
   });
   
   // Check if file was uploaded during workflow creation
@@ -429,12 +502,12 @@ async function executeFileUploadNode(
       context.uploadedFiles = {};
     }
     context.uploadedFiles[node.id] = {
-      fileName: node.uploadedFile?.name || params.fileName || 'uploaded-file',
+      fileName: node.uploadedFile?.name || params?.fileName || 'uploaded-file',
       content: node.fileContent,
       metadata: {
         nodeId: node.id,
         uploadedAt: new Date().toISOString(),
-        fileType: params.fileType,
+        fileType: params?.fileType,
         fileSize: node.uploadedFile?.size,
       }
     };

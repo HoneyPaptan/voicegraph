@@ -27,9 +27,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!currentWorkflow) {
+    if (!currentWorkflow || !currentWorkflow.nodes || currentWorkflow.nodes.length === 0) {
       return NextResponse.json(
-        { error: 'Current workflow not provided' },
+        { error: 'No existing workflow to edit. Please create a workflow first, then use voice edit to modify it.' },
         { status: 400 }
       );
     }
@@ -239,11 +239,13 @@ Return ONLY the updated workflow JSON with no explanations, or the sentinel __OF
       }
 
       // Validate node structure
-      workflow.nodes.forEach((node: any, index: number) => {
-        if (!node.id || !node.type || !node.action || !node.label) {
-          throw new Error(`Invalid node structure at position ${index + 1}: missing required fields`);
-        }
-      });
+      if (workflow.nodes && Array.isArray(workflow.nodes)) {
+        workflow.nodes.forEach((node: any, index: number) => {
+          if (!node.id || !node.type || !node.action || !node.label) {
+            throw new Error(`Invalid node structure at position ${index + 1}: missing required fields (id: ${node.id}, type: ${node.type}, action: ${node.action}, label: ${node.label})`);
+          }
+        });
+      }
 
       // Validate edges reference existing nodes
       const nodeIds = workflow.nodes.map((n: any) => n.id);
