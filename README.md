@@ -1,271 +1,338 @@
-# AI Workflow Orchestrator
+# VoiceGraph 🎤
 
-A voice-powered workflow automation system that converts natural language commands into visual, executable workflows. Built for speed and simplicity with cutting-edge AI technologies.
+**AI-Powered Voice-to-Workflow Automation Platform**
 
-## 🚀 Features
+Transform your voice commands into automated workflows with visual graph interface. VoiceGraph uses advanced AI to parse natural language, generate executable workflows, and orchestrate complex automation tasks across multiple services.
 
-- **Voice Input**: Speak your workflow using Groq Whisper (12x faster than OpenAI)
-- **AI-Powered Parsing**: Cerebras AI with Llama models instantly understands your intent
-- **Visual Workflow**: Beautiful animated graph visualization with React Flow
-- **Real-time Execution**: Server-Sent Events stream logs as workflows execute
-- **Smart Integrations**: Connect Notion pages, AI processing, and email delivery
-- **Docker Ready**: One-command deployment with docker-compose
+## ✨ Features
+
+### 🎯 Core Capabilities
+- **Voice-to-Workflow**: Speak your automation needs, get visual workflows
+- **Visual Workflow Builder**: Drag-and-drop interface with React Flow
+- **Real-time Execution**: Live progress tracking with node highlighting
+- **Background Processing**: Async execution with complete history tracking
+- **Multi-Service Integration**: Notion, Tavily, Email, GitHub, and more
+
+### 🤖 AI-Powered
+- **Cerebras LLM**: Ultra-fast workflow parsing and content processing
+- **Groq Whisper**: High-quality speech-to-text transcription
+- **Smart Parsing**: Natural language understanding for complex workflows
+
+### 🔧 Technical Features
+- **Docker MCP Gateway**: Secure orchestration of AI tools
+- **Parallel Execution**: Optimized workflow processing
+- **Real-time Streaming**: Live execution logs and progress updates
+- **Workflow History**: Complete audit trail of all executions
+- **Voice Editing**: Modify workflows using voice commands
 
 ## 🏗️ Architecture
 
 ```
-Voice Input → Groq Whisper → Cerebras Parser → React Flow Graph
-                                                        ↓
-                                                   Execute Button
-                                                        ↓
-                                  Notion → Cerebras LLM → Email → SSE Logs
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Frontend      │    │   MCP Gateway    │    │   AI Services   │
+│   (Next.js)     │◄──►│   (Docker)       │◄──►│   (Cerebras)    │
+│                 │    │                  │    │   (Groq)        │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+         │                       │                       │
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Workflow      │    │   Notion API     │    │   Tavily API    │
+│   Execution     │    │   Integration    │    │   Integration   │
+│   Engine        │    │                  │    │                 │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
 ```
 
-## 📦 Tech Stack
+### Data Flow
+1. **Voice Input** → Groq Whisper → Text
+2. **Text** → Cerebras LLM → Workflow JSON
+3. **Workflow** → React Flow → Visual Graph
+4. **Execution** → MCP Gateway → Service APIs
+5. **Results** → Real-time UI Updates
 
-### Frontend
-- **Next.js 15** - React framework with App Router
-- **Tailwind CSS v4** - Modern styling
-- **shadcn/ui** - Beautiful UI components
-- **React Flow** - Workflow visualization
-- **Framer Motion** - Smooth animations
-
-### AI Services
-- **Cerebras AI** - Ultra-fast LLM inference (Llama models)
-- **Groq Whisper** - Speech-to-text transcription
-- **Vercel AI SDK** - Unified AI interface
-
-### Integrations
-- **Notion API** - Fetch pages and databases
-- **Nodemailer** - Send emails via SMTP
-
-## 🛠️ Setup
+## 🚀 Quick Start
 
 ### Prerequisites
 - Node.js 18+
 - Docker & Docker Compose
-- API Keys:
-  - Cerebras API key
-  - Groq API key
-  - Notion integration token (optional)
-  - Gmail app password (optional)
+- API Keys (see Environment Variables)
 
-### Local Development
-
-1. **Clone and install dependencies:**
+### 1. Clone Repository
 ```bash
+git clone <repository-url>
+cd voicegraph
+```
+
+### 2. Environment Setup
+Create `.env` file in the root directory:
+```bash
+# Cerebras AI (Required for prize eligibility)
+CEREBRAS_API_KEY=your_cerebras_api_key_here
+
+# Groq (Speech-to-Text)
+GROQ_API_KEY=your_groq_api_key_here
+
+# Notion Integration
+NOTION_API_KEY=your_notion_integration_key_here
+
+# Tavily (Web Search)
+TAVILY_API_KEY=your_tavily_api_key_here
+
+# SMTP (Email)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASSWORD=your_app_password
+
+# MCP Gateway
+MCP_GATEWAY_URL=http://localhost:3001
+
+# Development
+NODE_ENV=development
+```
+
+### 3. Start Services
+
+#### Option A: Docker Compose (Recommended)
+```bash
+# Start MCP Gateway in Docker
+docker-compose up -d
+
+# Start Frontend locally
 cd frontend
-npm install
-```
-
-2. **Configure environment variables:**
-```bash
-# Copy example env file
-cp .env.example .env.local
-
-# Edit .env.local with your API keys
-```
-
-3. **Run development server:**
-```bash
 npm run dev
 ```
 
-4. **Open browser:**
-Navigate to `http://localhost:3000`
-
-### Docker Deployment
-
-1. **Set environment variables:**
+#### Option B: Individual Services
 ```bash
-# Create .env file in root directory
-cp .env.example .env
+# Terminal 1: MCP Gateway (Docker)
+docker-compose up mcp-gateway
 
-# Edit .env with your API keys
+# Terminal 2: Frontend
+cd frontend
+npm run dev
+
+# Terminal 3: Background Processing (Optional)
+cd frontend
+npx inngest-cli@latest dev
 ```
 
-2. **Build and run with Docker Compose:**
+### 4. Access Application
+- **Frontend**: http://localhost:3000
+- **MCP Gateway**: http://localhost:3001
+- **Inngest Dashboard**: http://localhost:8288 (if running)
+
+## 🐳 Docker Deployment
+
+### Full Stack Deployment
 ```bash
-docker-compose up --build
+# Start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
 ```
 
-3. **Access application:**
-Navigate to `http://localhost:3000`
+### Services Included
+- **MCP Gateway**: Orchestrates AI tools and APIs
+- **Frontend**: Next.js application (if enabled)
 
-4. **Check health status:**
-```bash
-curl http://localhost:3000/api/health
-```
+## 🎮 How to Use
 
-## 📝 Usage
+### 1. Create a Workflow
+- **Voice**: Click mic button and speak your automation needs
+- **Text**: Type your requirements in the text input
+- **Templates**: Use pre-built workflow templates
 
-### Creating a Workflow
+### 2. Configure Workflow
+- Enter required parameters (Notion page IDs, email addresses, etc.)
+- Review the generated workflow graph
+- Modify nodes if needed
 
-1. **Click "Start Recording"** - Grant microphone permissions
-2. **Speak your command**, for example:
-   - "Get my Notion meeting notes and email me a summary"
-   - "Fetch my Notion project tasks and send me a status update"
-3. **Watch the workflow generate** - Cerebras AI parses your intent
-4. **Configure parameters** - Enter Notion IDs and email address
-5. **Run the workflow** - See real-time execution logs
+### 3. Execute Workflow
+- **Real-time**: Click "Run Workflow" for live execution
+- **Background**: Toggle "Background Execution" for async processing
+- **Monitor**: Watch real-time progress and logs
 
-### Example Workflows
-
-#### Meeting Notes Summary
-```
-Input: "Get my Notion meeting notes and email me a summary"
-Flow: Notion Fetch → Cerebras Summarize → Email Send
-```
-
-#### Project Status Update
-```
-Input: "Fetch my Notion project tasks and send me a status update"
-Flow: Notion Database → Cerebras Analyze → Email Send
-```
-
-#### Weekly Insights
-```
-Input: "Get my weekly Notion journal and email me key insights"
-Flow: Notion Fetch → Cerebras Extract → Email Send
-```
+### 4. View Results
+- **Execution Logs**: Real-time progress updates
+- **Workflow History**: Complete audit trail
+- **Node Status**: Visual indicators for success/failure
 
 ## 🔧 API Endpoints
 
-- `POST /api/transcribe` - Transcribe audio to text (Groq Whisper)
-- `POST /api/parse` - Parse text to workflow JSON (Cerebras)
-- `POST /api/execute` - Execute workflow with SSE streaming
-- `GET /api/health` - Health check for Docker monitoring
+### Core APIs
+- `POST /api/transcribe` - Speech-to-text conversion
+- `POST /api/parse` - Natural language to workflow parsing
+- `POST /api/execute` - Real-time workflow execution
+- `POST /api/execute-background` - Background workflow execution
+- `POST /api/edit-workflow` - Voice-based workflow editing
 
-## 🐳 Docker Configuration
+### Health & Monitoring
+- `GET /api/health` - System health check
+- `GET /api/workflow-history` - Execution history
+- `GET /api/test-inngest` - Inngest connection test
 
-### Services
-- **frontend** - Next.js application on port 3000
+## 🛠️ Development
 
-### Health Checks
-The frontend service includes health monitoring:
-- Endpoint: `http://localhost:3000/api/health`
-- Interval: 30 seconds
-- Retries: 3
+### Project Structure
+```
+voicegraph/
+├── frontend/                 # Next.js application
+│   ├── app/                 # App router pages
+│   ├── components/          # React components
+│   ├── lib/                 # Utilities and integrations
+│   └── public/              # Static assets
+├── mcp-gateway/             # Docker MCP Gateway
+├── docker-compose.yml       # Docker services
+└── README.md               # This file
+```
 
-### Networks
-All services run on an isolated bridge network for security.
+### Key Technologies
+- **Frontend**: Next.js 14, React 18, Tailwind CSS, React Flow
+- **Backend**: Node.js, Express.js, Server-Sent Events
+- **AI**: Cerebras LLM, Groq Whisper
+- **Integrations**: Notion API, Tavily API, SMTP
+- **Infrastructure**: Docker, MCP Gateway
 
-## 🎯 Sponsor Technology Usage
+### Development Commands
+```bash
+# Start MCP Gateway
+docker-compose up -d
 
-### Cerebras AI ✅
-- **Primary LLM** for workflow parsing
-- **Content processing** for summarization and analysis
-- **Models**: Llama-4-Scout-17b-16e-instruct
-- **Speed**: Sub-second inference times
+# Start Frontend
+cd frontend && npm run dev
 
-### Meta Llama ✅
-- Using Llama models through Cerebras inference
-- Powers natural language understanding
-- Enables intelligent workflow generation
+# Start Background Processing
+cd frontend && npx inngest-cli@latest dev
 
-### Docker ✅
-- **Full containerization** with docker-compose
-- **Health monitoring** with automated checks
-- **Production-ready** multi-stage builds
-- **One-command deployment**
+# Test connections
+curl http://localhost:3000/api/health
+curl http://localhost:3001/health
+```
 
-## ⚡ Performance
+## 🎯 Workflow Examples
 
-- **Transcription**: ~2-3 seconds for 10-second audio
-- **Workflow Parsing**: ~0.5-1 second with Cerebras
-- **Execution**: Depends on workflow complexity
-- **Total Demo Flow**: ~5-10 seconds end-to-end
+### Example 1: Notion to Email
+**Voice**: "Get my Notion meeting notes and email me a summary"
+**Workflow**:
+1. Fetch Notion page
+2. Summarize content with AI
+3. Send email with summary
 
-## 🔒 Security Notes
+### Example 2: Web Research
+**Voice**: "Research hotels in Paris and create a Notion page with the results"
+**Workflow**:
+1. Search web for hotels
+2. Process and format data
+3. Create Notion page with results
 
-- Never commit `.env` files
-- Use environment variables for all secrets
-- Enable Gmail 2FA and use app-specific passwords
-- Notion integration requires proper token scoping
+### Example 3: Multi-Step Automation
+**Voice**: "Find trending topics, research them, and send a daily digest"
+**Workflow**:
+1. Search for trending topics
+2. Research each topic
+3. Summarize findings
+4. Create formatted report
+5. Send email digest
+
+## 🔒 Security
+
+### API Key Management
+- All API keys stored in environment variables
+- No hardcoded credentials in codebase
+- Secure Docker container isolation
+
+### MCP Gateway Security
+- Isolated Docker containers
+- Restricted network access
+- Secure credential handling
 
 ## 🐛 Troubleshooting
 
-### Microphone not working
-- Check browser permissions
-- Ensure HTTPS (or localhost)
-- Try different browser
+### Common Issues
 
-### Transcription fails
-- Verify GROQ_API_KEY is set
-- Check audio format (WebM supported)
-- Check API quota/limits
+#### Workflow Stuck in "Pending"
+- Check MCP Gateway is running: `curl http://localhost:3001/health`
+- Verify API keys are set correctly
+- Check console logs for errors
 
-### Workflow parsing fails
-- Verify CEREBRAS_API_KEY is set
-- Try rephrasing command
-- Check API logs for errors
+#### Voice Input Not Working
+- Ensure microphone permissions are granted
+- Check Groq API key is valid
+- Verify network connectivity
 
-### Docker build fails
-- Ensure Node.js 18+ is used in Dockerfile
-- Check for missing dependencies
-- Verify .dockerignore is set up
+#### Background Execution Issues
+- Check Inngest dev server is running
+- Verify workflow history API is accessible
+- Check console logs for detailed errors
 
-## 📄 Environment Variables
+### Debug Commands
+```bash
+# Check service status
+docker-compose ps
 
-See `.env.example` for complete list of required variables:
+# View logs
+docker-compose logs -f mcp-gateway
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| CEREBRAS_API_KEY | Yes | Cerebras AI API key |
-| GROQ_API_KEY | Yes | Groq Cloud API key |
-| NOTION_API_KEY | Optional | Notion integration token |
-| SMTP_HOST | Optional | SMTP server (e.g., smtp.gmail.com) |
-| SMTP_PORT | Optional | SMTP port (587 for TLS) |
-| SMTP_USER | Optional | Email address |
-| SMTP_PASSWORD | Optional | Email app password |
-
-## 🎨 UI Features
-
-- **Dark Mode** - Modern glassmorphism design
-- **Animated Nodes** - Staggered fade-in effects
-- **Real-time Updates** - Active node highlighting during execution
-- **Responsive Layout** - Works on desktop and tablet
-- **Error Handling** - Graceful error messages with retry options
-
-## 📦 Project Structure
-
+# Test API endpoints
+curl http://localhost:3000/api/health
+curl http://localhost:3001/health
 ```
-voicegraph/
-├── frontend/
-│   ├── app/
-│   │   ├── api/           # API routes
-│   │   ├── layout.tsx     # Root layout
-│   │   └── page.tsx       # Main page
-│   ├── components/        # React components
-│   ├── lib/
-│   │   ├── tools/         # Notion, Email integrations
-│   │   ├── cerebras.ts    # Cerebras AI utilities
-│   │   ├── executor.ts    # Workflow executor
-│   │   └── types.ts       # TypeScript types
-│   ├── Dockerfile
-│   └── package.json
-├── docker-compose.yml
-├── .env.example
-└── README.md
-```
+
+## 📊 Monitoring
+
+### Health Checks
+- **Frontend**: http://localhost:3000/api/health
+- **MCP Gateway**: http://localhost:3001/health
+- **Inngest**: http://localhost:8288 (if running)
+
+### Logs
+- **Frontend**: Browser console + terminal
+- **MCP Gateway**: `docker-compose logs mcp-gateway`
+- **Background**: Inngest dashboard
+
+## 🏆 Prize Eligibility
+
+This project is designed for hackathon competition with the following sponsor requirements:
+
+### Cerebras AI (Required)
+- Primary LLM for workflow parsing
+- Content processing and summarization
+- Models: llama-4-scout-17b-16e-instruct
+
+### Docker MCP Gateway
+- Containerized MCP server orchestration
+- Secure tool management
+- Enterprise-grade isolation
+
+### Meta Llama (Automatic)
+- Using Llama models through Cerebras
+- Covered by Cerebras integration
 
 ## 🤝 Contributing
 
-This is a hackathon project built in 5 days. Contributions welcome!
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
 
-## 📝 License
+## 📄 License
 
-MIT License - feel free to use for your own projects!
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 🎉 Acknowledgments
+## 🙏 Acknowledgments
 
-- **Cerebras** - Ultra-fast LLM inference
-- **Groq** - Lightning-fast Whisper API
-- **Meta** - Llama models
-- **Vercel** - AI SDK and Next.js
-- **React Flow** - Beautiful workflow visualization
+- **Cerebras AI** for ultra-fast LLM inference
+- **Groq** for high-quality speech-to-text
+- **Docker** for MCP Gateway orchestration
+- **Notion** and **Tavily** for API integrations
+- **React Flow** for workflow visualization
 
 ---
 
-Built with ❤️ for AI automation enthusiasts
-
+**VoiceGraph** - Transform your voice into powerful automation workflows! 🎤✨
