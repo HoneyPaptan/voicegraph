@@ -8,7 +8,7 @@ const geist = Geist({
 });
 
 export const metadata: Metadata = {
-  title: 'AI Workflow Orchestrator',
+  title: 'VoiceGraph',
   description: 'Voice-powered workflow automation with Cerebras AI',
 };
 
