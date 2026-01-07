@@ -92,15 +92,10 @@ NODE_ENV=development
 # Start Frontend
 cd frontend
 npm run dev
-
-# Terminal 2: Background Processing (Optional)
-cd frontend
-npx inngest-cli@latest dev
 ```
 
 ### 4. Access Application
 - **Frontend**: http://localhost:3000
-- **Inngest Dashboard**: http://localhost:8288 (if running)
 
 
 ## 🎮 How to Use
@@ -137,7 +132,6 @@ npx inngest-cli@latest dev
 ### Health & Monitoring
 - `GET /api/health` - System health check
 - `GET /api/workflow-history` - Execution history
-- `GET /api/test-inngest` - Inngest connection test
 
 ## 🛠️ Development
 
@@ -162,9 +156,6 @@ voicegraph/
 ```bash
 # Start Frontend
 cd frontend && npm run dev
-
-# Start Background Processing
-cd frontend && npx inngest-cli@latest dev
 
 # Test connections
 curl http://localhost:3000/api/health
@@ -215,7 +206,6 @@ curl http://localhost:3000/api/health
 - Verify network connectivity
 
 #### Background Execution Issues
-- Check Inngest dev server is running
 - Verify workflow history API is accessible
 - Check console logs for detailed errors
 
@@ -229,11 +219,9 @@ curl http://localhost:3000/api/health
 
 ### Health Checks
 - **Frontend**: http://localhost:3000/api/health
-- **Inngest**: http://localhost:8288 (if running)
 
 ### Logs
 - **Frontend**: Browser console + terminal
-- **Background**: Inngest dashboard
 
 ## 🏆 Prize Eligibility
 

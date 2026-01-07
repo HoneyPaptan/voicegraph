@@ -23,11 +23,6 @@ SMTP_PORT=587
 SMTP_USER=your_email@gmail.com
 SMTP_PASS=your_app_password_here
 
-# Inngest Configuration
-INNGEST_EVENT_KEY=dev-key-12345
-INNGEST_SIGNING_KEY=dev-signing-key-67890
-INNGEST_DEV_URL=http://localhost:3000/api/inngest
-
 # Development Environment
 NODE_ENV=development
 EOF
