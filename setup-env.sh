@@ -28,9 +28,6 @@ INNGEST_EVENT_KEY=dev-key-12345
 INNGEST_SIGNING_KEY=dev-signing-key-67890
 INNGEST_DEV_URL=http://localhost:3000/api/inngest
 
-# MCP Gateway Configuration
-MCP_GATEWAY_URL=http://localhost:3001
-
 # Development Environment
 NODE_ENV=development
 EOF
@@ -55,5 +52,4 @@ echo "   3. Example: https://notion.so/your-workspace/DATABASE_ID?v=..."
 echo ""
 echo "🚀 Next steps:"
 echo "   1. Edit .env file with your API keys"
-echo "   2. Run: ./start-services.sh"
-echo "   3. Or run manually: docker-compose up mcp-gateway"
+echo "   2. Run: cd frontend && npm run dev"

@@ -16,11 +16,6 @@
         "usage": "Using Llama models through Cerebras inference",
         "coverage": "Automatically covered by using Cerebras with Llama models"
       },
-      "docker": {
-        "requirement": "Most creative usage of Docker MCP Gateway",
-        "usage": "Containerize entire application with docker-compose",
-        "deliverable": "Multi-container deployment (frontend + backend)"
-      }
     },
     "credits_available": {
       "openrouter": "$5 credit (not used - no Whisper support)",
@@ -73,11 +68,9 @@
       }
     },
     "deployment": {
-      "containerization": "Docker + docker-compose",
       "hosting_options": [
         "Vercel (frontend)",
-        "Railway (backend)",
-        "Local with Docker"
+        "Railway (backend)"
       ]
     }
   },
@@ -99,7 +92,6 @@
       "root": [
         "frontend/",
         "backend/ (if separate)",
-        "docker-compose.yml",
         ".env.example",
         "README.md"
       ],
@@ -109,8 +101,7 @@
         "lib/ (cerebras.js, groq-stt.js, executor.js, tools/)",
         "lib/tools/ (notion.js, email.js)",
         "public/",
-        "package.json",
-        "Dockerfile"
+        "package.json"
       ]
     },
     "data_flow": {
@@ -142,7 +133,6 @@
       "Make REAL API calls to Notion and Email (no mocking)",
       "Show animated node generation (staggered fade-in)",
       "Stream execution logs in real-time using Server-Sent Events",
-      "Containerize with Docker (docker-compose with frontend + backend services)",
       "Handle errors gracefully with retry options",
       "Support linear workflows only (no branching for MVP)",
       "Store all state in React state or variables (NO localStorage/sessionStorage)",
@@ -224,19 +214,16 @@
       "deliverable": "Demo-ready UI with wow factor"
     },
     "day_5": {
-      "goal": "Docker & Demo Prep",
+      "goal": "Demo Prep",
       "tasks": [
-        "Create Dockerfiles for frontend and backend",
-        "Write docker-compose.yml with both services",
-        "Test full deployment with 'docker-compose up'",
-        "Add /health endpoint showing Docker status",
+        "Add /health endpoint",
         "Record 3-minute demo video as backup",
         "Create README with architecture diagram",
         "Test on fresh environment (catch bugs)",
         "Practice live demo pitch",
         "Deploy to Vercel/Railway (optional)"
       ],
-      "deliverable": "Containerized app + polished demo"
+      "deliverable": "Polished demo"
     }
   },
   "workflow_examples": {
@@ -317,7 +304,7 @@
       {
         "time": "2:15-2:45",
         "action": "Technical Highlights",
-        "script": "Built with Cerebras for ultra-fast inference, Groq Whisper for voice, React Flow for visualization, and fully containerized with Docker for one-command deployment."
+        "script": "Built with Cerebras for ultra-fast inference, Groq Whisper for voice, and React Flow for visualization."
       },
       {
         "time": "2:45-3:00",
@@ -328,11 +315,10 @@
   },
   "judging_criteria_coverage": {
     "innovation": "Voice-to-workflow is novel, visual graph generation is impressive",
-    "technical_complexity": "Multi-service architecture, real-time streaming, LLM orchestration, containerization",
+    "technical_complexity": "Multi-service architecture, real-time streaming, LLM orchestration",
     "sponsor_tech_usage": {
       "cerebras": "Used for parsing AND content processing (multiple touchpoints)",
-      "meta_llama": "Running Llama models through Cerebras",
-      "docker": "Full containerized deployment with health monitoring"
+      "meta_llama": "Running Llama models through Cerebras"
     },
     "practicality": "Solves real problem: making automation accessible to non-coders",
     "execution": "Actually works end-to-end with real API integrations",
@@ -358,7 +344,6 @@
       "Overengineering - keep it simple, linear workflows only",
       "Mocking data - judges will check if it actually works",
       "Ignoring errors - add proper error handling",
-      "Forgetting Docker - it's a requirement for prizes",
       "No fallback - have pre-recorded demo video in case of WiFi issues",
       "Poor time management - timebox each feature, cut scope if behind"
     ]
@@ -368,8 +353,7 @@
       "Voice input works",
       "Workflow appears visually",
       "Execution completes successfully",
-      "Real email is received",
-      "Docker deployment works"
+      "Real email is received"
     ],
     "bonus_points": [
       "Execution completes in <5 seconds (show Cerebras speed)",
@@ -377,7 +361,6 @@
       "Clean, modern UI (dark mode)",
       "Error recovery (retry button)",
       "Multiple example workflows",
-      "Live Docker health status in UI"
     ]
   },
   "cursor_ai_instructions": {

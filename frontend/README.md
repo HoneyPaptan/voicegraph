@@ -44,7 +44,6 @@ frontend/
 ├── lib/                  # Utilities and integrations
 │   ├── cerebras.ts       # Cerebras LLM integration
 │   ├── executor.ts       # Workflow execution engine
-│   ├── mcp-client.ts     # MCP Gateway client
 │   └── types.ts          # TypeScript definitions
 └── public/               # Static assets
 ```
@@ -82,10 +81,6 @@ NEXT_PUBLIC_NOTION_API_KEY=your_notion_integration_key_here
 
 # Tavily (Web Search)
 NEXT_PUBLIC_TAVILY_API_KEY=your_tavily_api_key_here
-
-# MCP Gateway
-NEXT_PUBLIC_MCP_GATEWAY_URL=http://localhost:3001
-
 
 ```
 
@@ -130,7 +125,6 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 - **Groq**: Speech-to-text transcription
 - **Notion API**: Page and database operations
 - **Tavily API**: Web search and data extraction
-- **MCP Gateway**: Orchestrated service calls
 
 ## 🎨 Styling & Theming
 
@@ -181,15 +175,6 @@ npm run build
 npm start
 ```
 
-### Docker Deployment
-```bash
-# Build image
-docker build -t voicegraph-frontend .
-
-# Run container
-docker run -p 3000:3000 voicegraph-frontend
-```
-
 ### Environment Variables (Production)
 ```bash
 # All NEXT_PUBLIC_ variables must be set
@@ -197,7 +182,6 @@ NEXT_PUBLIC_CEREBRAS_API_KEY=prod_key
 NEXT_PUBLIC_GROQ_API_KEY=prod_key
 NEXT_PUBLIC_NOTION_API_KEY=prod_key
 NEXT_PUBLIC_TAVILY_API_KEY=prod_key
-NEXT_PUBLIC_MCP_GATEWAY_URL=http://mcp-gateway:3001
 ```
 
 ## 🐛 Troubleshooting
@@ -215,7 +199,6 @@ NEXT_PUBLIC_MCP_GATEWAY_URL=http://mcp-gateway:3001
 - Check console for errors
 
 #### Execution Failing
-- Verify MCP Gateway is running
 - Check all API keys are valid
 - Review execution logs
 

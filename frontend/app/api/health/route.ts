@@ -2,19 +2,10 @@ import { NextResponse } from 'next/server';
 
 /**
  * GET /api/health
- * Health check endpoint for Docker monitoring
+ * Health check endpoint
  */
 export async function GET() {
   try {
-    // Check MCP Gateway health
-    let mcpStatus = 'unknown';
-    try {
-      const mcpResponse = await fetch(`${process.env.MCP_GATEWAY_URL || 'http://mcp-gateway:3001'}/health`);
-      mcpStatus = mcpResponse.ok ? 'healthy' : 'unhealthy';
-    } catch {
-      mcpStatus = 'unreachable';
-    }
-
     const health = {
       status: 'healthy',
       timestamp: new Date().toISOString(),
@@ -30,7 +21,6 @@ export async function GET() {
           process.env.SMTP_USER &&
           process.env.SMTP_PASSWORD
         ),
-        mcpGateway: mcpStatus,
       },
     };
 

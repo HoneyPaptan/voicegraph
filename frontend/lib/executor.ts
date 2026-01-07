@@ -5,7 +5,7 @@ import { generateContent } from './cerebras';
 import { searchWeb, extractWebData } from './tools/tavily';
 import { getGitHubRepos, getGitHubIssues, createGitHubIssue } from './tools/github';
 import { processUploadedFile, FileUploadResult } from './tools/file-upload';
-import { notionMCP, tavilyMCP } from './mcp-client';
+
 
 /**
  * Executes a single workflow node
@@ -27,8 +27,21 @@ export async function executeNode(
         output = await executeNotionNode(node, context);
         break;
 
-      case 'notion_create':
-        output = await executeNotionCreateNode(node, context);
+        case 'notion_create':
+        output = await createNotionPage(context, node);
+        break;
+      case 'llm':
+        output = await generateContent(node, context);
+        break;
+      case 'email':
+        output = await sendEmail(context, node);
+        break;
+      case 'tavily':
+      case 'web_search':
+        output = await searchWeb(query, { maxResults, includeDomains, site });
+        break;
+      case 'github':
+        output = await getGitHubData(node, context);
         break;
 
       case 'llm':
@@ -74,7 +87,7 @@ export async function executeNode(
 }
 
 /**
- * Executes a Notion node using MCP
+ * Executes a Notion node using direct API
  * Uses smart fetcher that auto-detects page vs database
  */
 async function executeNotionNode(
@@ -82,7 +95,7 @@ async function executeNotionNode(
   context: ExecutionContext
 ): Promise<string> {
   const { action, params } = node;
-
+  
   // Use smart fetcher for any action type (auto-detects page vs database)
   // Prioritize user config over workflow params
   const notionId = context.notionPageId || context.notionDatabaseId || 
@@ -91,237 +104,38 @@ async function executeNotionNode(
   if (!notionId) {
     throw new Error('Notion Page/Database ID not provided. Please enter it in the configuration modal.');
   }
-
-  console.log(`📄 Notion MCP node action: ${action}, using smart fetcher for ID: ${notionId}`);
   
-  // Try MCP first, fallback to direct API
-  try {
-    const result = await notionMCP.fetchPage(notionId);
-    if (result.success) {
-      return result.data || 'Empty page';
-    } else {
-      console.log('⚠️ MCP Notion failed, falling back to direct API:', result.error);
-      return await fetchNotion(notionId);
-    }
-  } catch (error) {
-    console.log('⚠️ MCP Notion failed, falling back to direct API:', error);
-    return await fetchNotion(notionId);
-  }
-}
-
-/**
- * Executes an LLM node using Cerebras
- * Handles any action dynamically by converting action name to prompt
- * 
- * IMPORTANT: Uses sourceContent (original data) for extraction tasks,
- * and lastOutput (previous step) for transformation tasks
- */
-async function executeLLMNode(
-  node: WorkflowNode,
-  context: ExecutionContext
-): Promise<string> {
-  const { action, params } = node;
+  console.log(`📄 Notion node action: ${action}, using smart fetcher for ID: ${notionId}`);
   
-  // Determine which content to use:
-  // - For extraction/analysis: use ORIGINAL source content
-  // - For summarization: use previous output (or source if first LLM)
-  const isExtractionTask = action.includes('extract') || action.includes('find') || action.includes('get');
-  const isAnalysisTask = action.includes('analyze') || action.includes('insights');
-  
-  // Use source content for extraction/analysis, otherwise use previous output
-  const inputContent = (isExtractionTask || isAnalysisTask) 
-    ? (context.sourceContent || context.lastOutput)
-    : context.lastOutput;
-  
-  if (!inputContent) {
-    throw new Error('No input data for LLM processing');
-  }
-
-  // Build highly specific prompt based on action
-  let prompt = '';
-  
-  // Check if there's a custom prompt in params first
-  if (params?.prompt) {
-    prompt = `${params.prompt}\n\nContent:\n${inputContent}`;
-  }
-  // Handle predefined actions with VERY specific prompts
-  else if (action === 'summarize') {
-    prompt = `Create a concise, well-structured summary of the following content. Include key points, action items, and important dates.\n\nContent:\n${inputContent}`;
-  } else if (action === 'analyze') {
-    prompt = `Analyze the following content and provide key insights, trends, and recommendations.\n\nContent:\n${inputContent}`;
-  } else if (action === 'extract_insights') {
-    prompt = `Extract the most important insights, learnings, and takeaways from the following content.\n\nContent:\n${inputContent}`;
-  }
-  // Handle extraction tasks with specific instructions
-  else if (action.includes('extract') || action.includes('find') || action.includes('get')) {
-    // Convert action to instruction
-    // e.g., "extract_next_meeting_date" -> "Extract the next meeting date"
-    const humanReadableAction = action
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
+  // Direct API call
+  const result = await appendToNotionPage(pageId, content);
     
-    prompt = `${humanReadableAction} from the following content. Be specific and provide ONLY the requested information. If the information is not found, clearly state "Not found in the content".\n\nContent:\n${inputContent}`;
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to append to Notion page');
   }
-  // Handle ANY other custom action dynamically
-  else {
-    const humanReadableAction = action
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
+  return result.data || 'Content appended successfully';
+}
+
+  console.log(`📄 Notion node action: ${action}, using smart fetcher for ID: ${notionId}`);
+   
+  // Direct API call
+  const result = await appendToNotionPage(pageId, content);
     
-    prompt = `${humanReadableAction} from the following content:\n\nContent:\n${inputContent}`;
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to append to Notion page');
   }
-
-  console.log(`🤖 LLM Node Action: ${action}`);
-  console.log(`📝 Using: ${isExtractionTask || isAnalysisTask ? 'SOURCE' : 'PREVIOUS'} content`);
-  console.log(`📝 Input content length: ${inputContent ? inputContent.length : 0}`);
-  console.log(`📝 Input content preview: ${inputContent ? inputContent.substring(0, 300) + '...' : 'undefined'}`);
-  console.log(`💬 Prompt: ${prompt.substring(0, 150)}...`);
-
-  // Persist prompt for metrics estimation and per-node tracking
-  if (!context.__promptByNodeId) context.__promptByNodeId = {};
-  context.__promptByNodeId[node.id] = prompt;
-
-  const output = await generateContent(prompt);
-  try {
-    console.log('📊 LLM fallback metrics:', {
-      nodeId: node.id,
-      promptChars: prompt.length,
-      outputChars: (output || '').length,
-      estInputTokens: Math.ceil(prompt.length / 4),
-      estOutputTokens: Math.ceil(((output || '').length) / 4),
-      estCostUSD: Math.ceil(prompt.length / 4) * 0.65e-6 + Math.ceil(((output || '').length) / 4) * 0.85e-6,
-    });
-  } catch (e) {}
-  return output;
+  return result.data || 'Content appended successfully';
 }
 
 /**
- * Executes an Email node
- */
-async function executeEmailNode(
-  node: WorkflowNode,
-  context: ExecutionContext
-): Promise<string> {
-  const { params } = node;
-  
-  // Prioritize user config over workflow params
-  const to = context.recipientEmail || params?.to;
-  const subject = params?.subject || 'Workflow Result';
-  const body = context.lastOutput || 'No content';
-
-  if (!to) {
-    throw new Error('Recipient email address not provided. Please enter it in the configuration modal.');
-  }
-
-  return await sendEmail(to, subject, body);
-}
-
-/**
- * Executes a Notion Create node
- * Creates a new Notion page or appends to existing page
- */
-async function executeNotionCreateNode(
-  node: WorkflowNode,
-  context: ExecutionContext
-): Promise<string> {
-  const { action, params } = node;
-
-  console.log(`📝 Notion Create MCP node action: ${action}`);
-
-  if (action === 'create_page') {
-    // Try to get parent ID - prioritize user config, then env default, then null
-    const parentId = context.notionDatabaseId || context.notionPageId || 
-                    params?.databaseId || params?.pageId || params?.parentId || 
-                    process.env.NOTION_PAGE_DEFAULT_ID || null;
-    
-    const title = params?.title || `Workflow Result - ${new Date().toLocaleString()}`;
-    const content = context.lastOutput || '';
-
-    console.log(`📝 Creating Notion page with parent: ${parentId || 'none (standalone)'}`);
-    console.log(`📝 Using default database: ${process.env.NOTION_PAGE_DEFAULT_ID ? 'Yes' : 'No'}`);
-    console.log(`📝 Title: "${title}"`);
-
-    // Try MCP first, fallback to direct API
-    try {
-      const result = await notionMCP.createPage({
-        parentId,
-        title,
-        content,
-        properties: params?.properties
-      });
-      
-      if (result.success) {
-        return result.data || 'Page created successfully';
-      } else {
-        console.log('⚠️ MCP Notion Create failed, falling back to direct API:', result.error);
-        const fallbackResult = await createNotionPage(parentId, title, content);
-        
-        if (!fallbackResult.success) {
-          throw new Error(fallbackResult.error || 'Failed to create Notion page');
-        }
-        return fallbackResult.data || 'Page created successfully';
-      }
-    } catch (error) {
-      console.log('⚠️ MCP Notion Create failed, falling back to direct API:', error);
-      const fallbackResult = await createNotionPage(parentId, title, content);
-      
-      if (!fallbackResult.success) {
-        throw new Error(fallbackResult.error || 'Failed to create Notion page');
-      }
-      return fallbackResult.data || 'Page created successfully';
-    }
-  } 
-  else if (action === 'append_to_page') {
-    const pageId = context.notionPageId || params?.pageId;
-    const content = context.lastOutput || '';
-
-    if (!pageId) {
-      throw new Error('Notion Page ID not provided for appending content');
-    }
-
-    // Try MCP first, fallback to direct API
-    try {
-      const result = await notionMCP.appendToPage(pageId, content);
-      
-      if (result.success) {
-        return result.data || 'Content appended successfully';
-      } else {
-        console.log('⚠️ MCP Notion Append failed, falling back to direct API:', result.error);
-        const fallbackResult = await appendToNotionPage(pageId, content);
-        
-        if (!fallbackResult.success) {
-          throw new Error(fallbackResult.error || 'Failed to append to Notion page');
-        }
-        return fallbackResult.data || 'Content appended successfully';
-      }
-    } catch (error) {
-      console.log('⚠️ MCP Notion Append failed, falling back to direct API:', error);
-      const fallbackResult = await appendToNotionPage(pageId, content);
-      
-      if (!fallbackResult.success) {
-        throw new Error(fallbackResult.error || 'Failed to append to Notion page');
-      }
-      return fallbackResult.data || 'Content appended successfully';
-    }
-  }
-  else {
-    throw new Error(`Unknown Notion create action: ${action}`);
-  }
-}
-
-/**
- * Executes a Tavily Web Search node
+ * Executes a Tavily Web Search node using direct API
  */
 async function executeTavilyNode(
   node: WorkflowNode,
   context: ExecutionContext
 ): Promise<string> {
   const { action, params } = node;
-
-  console.log(`🔍 Tavily MCP node action: ${action}`);
-
+  
   // Build query with simple placeholder replacement from previous user input
   let query = params?.query || params?.search_query || '';
   const userInput = (context.lastOutput || context.sourceContent || '').toString();
@@ -330,6 +144,23 @@ async function executeTavilyNode(
   } else if (query.includes('DESTINATION')) {
     query = query.replaceAll('DESTINATION', userInput);
   }
+  if (!query) {
+    query = userInput; // fallback to user input entirely
+  }
+  
+  const maxResults = params?.max_results || params?.maxResults || 5;
+  const includeDomains = params?.includeDomains || params?.include_domains;
+  const site = params?.site;
+  
+  const result = await searchWeb(query, { maxResults, includeDomains, site });
+  
+  if (!result.success) {
+    throw new Error(result.error || 'Web search failed');
+  }
+  
+  console.log(`📝 Direct Tavily API result - Data length: ${result.data ? result.data.length : 0}`);
+  return result.data || 'No results found';
+}
   if (!query) {
     query = userInput; // fallback to user input entirely
   }
@@ -342,47 +173,16 @@ async function executeTavilyNode(
   const includeDomains = params?.includeDomains || params?.include_domains;
   const site = params?.site;
 
-  // Try MCP first, fallback to direct API
-  try {
-    const result = await tavilyMCP.searchWeb(query, { maxResults, includeDomains, site });
-    if (result.success) {
-      // Concatenate with existing output so downstream summarization can see both routes and hotels
-      const previous = context.lastOutput ? String(context.lastOutput) + '\n\n' : '';
-      const finalOutput = previous + (result.data || 'No results found');
-      console.log(`🔍 Tavily MCP result - Data length: ${result.data ? result.data.length : 0}`);
-      console.log(`🔍 Tavily MCP result - Final output length: ${finalOutput.length}`);
-      console.log(`🔍 Tavily MCP result - Final output preview: ${finalOutput.substring(0, 300)}...`);
-      return finalOutput;
-    } else {
-      console.log('⚠️ MCP Tavily failed, falling back to direct API:', result.error);
-      const fallbackResult = await searchWeb(query, { maxResults, includeDomains, site });
-      
-      if (!fallbackResult.success) {
-        throw new Error(fallbackResult.error || 'Web search failed');
-      }
-
-      // Concatenate with existing output so downstream summarization can see both routes and hotels
-      const previous = context.lastOutput ? String(context.lastOutput) + '\n\n' : '';
-      const finalOutput = previous + (fallbackResult.data || '');
-      console.log(`🔍 Tavily Fallback result - Data length: ${fallbackResult.data ? fallbackResult.data.length : 0}`);
-      console.log(`🔍 Tavily Fallback result - Final output length: ${finalOutput.length}`);
-      return finalOutput;
-    }
-  } catch (error) {
-    console.log('⚠️ MCP Tavily failed, falling back to direct API:', error);
-    const fallbackResult = await searchWeb(query, { maxResults, includeDomains, site });
-    
-    if (!fallbackResult.success) {
-      throw new Error(fallbackResult.error || 'Web search failed');
-    }
-
-    // Concatenate with existing output so downstream summarization can see both routes and hotels
-    const previous = context.lastOutput ? String(context.lastOutput) + '\n\n' : '';
-    const finalOutput = previous + (fallbackResult.data || '');
-    console.log(`🔍 Tavily Error Fallback result - Data length: ${fallbackResult.data ? fallbackResult.data.length : 0}`);
-    console.log(`🔍 Tavily Error Fallback result - Final output length: ${finalOutput.length}`);
-    return finalOutput;
+  // Direct API call
+  const result = await searchWeb(query, { maxResults, includeDomains, site });
+  
+  if (!result.success) {
+    throw new Error(result.error || 'Web search failed');
   }
+  
+  console.log(`📝 Direct Tavily API result - Data length: ${result.data ? result.data.length : 0}`);
+  return result.data || 'No results found';
+
 }
 
 /**
@@ -441,9 +241,9 @@ async function executeGitHubNode(
 
     const result = await getGitHubIssues(repoUrl, state, maxIssues);
 
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to fetch GitHub issues');
-    }
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to fetch GitHub issues');
+  }
 
     return result.data || 'No issues found';
   }
@@ -471,14 +271,12 @@ async function executeGitHubNode(
     const title = params?.title || `Workflow Result - ${new Date().toLocaleString()}`;
     const body = context.lastOutput || params?.body || 'This issue was created automatically by a workflow.';
 
-    console.log(`✏️ GitHub issue creation - Repository: ${repoUrl}, Title: "${title}"`);
-    console.log(`📋 Repository source: ${context.githubRepoUrl === repoUrl ? 'USER_CONFIG' : 'WORKFLOW_PARAMS'}`);
-
-    const result = await createGitHubIssue(repoUrl, title, body);
-
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to create GitHub issue');
-    }
+  console.log(`✏️ GitHub issue creation - Repository: ${repoUrl}, Title: "${title}"`);
+  const result = await createGitHubIssue(repoUrl, title, body);
+  
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to create GitHub issue');
+  }
 
     return result.data || 'Issue created successfully';
   }
@@ -505,27 +303,27 @@ async function executeFileUploadNode(
     params: Object.keys(params || {})
   });
   
-  // Check if file was uploaded during workflow creation
-  if (node.fileContent) {
-    console.log(`📄 Using pre-uploaded file content (${node.fileContent.length} characters)`);
-    
-    // Store in context for downstream nodes
-    if (!context.uploadedFiles) {
-      context.uploadedFiles = {};
-    }
-    context.uploadedFiles[node.id] = {
-      fileName: node.uploadedFile?.name || params?.fileName || 'uploaded-file',
-      content: node.fileContent,
-      metadata: {
-        nodeId: node.id,
-        uploadedAt: new Date().toISOString(),
-        fileType: params?.fileType,
-        fileSize: node.uploadedFile?.size,
+  // File upload node - process uploaded file content
+    if (node.fileContent) {
+      console.log(`📄 Using pre-uploaded file content (${node.fileContent.length} characters)`);
+      
+      // Store in context for downstream nodes
+      if (!context.uploadedFiles) {
+        context.uploadedFiles = {};
       }
-    };
-    
-    return node.fileContent;
-  }
+      context.uploadedFiles[node.id] = {
+        fileName: node.uploadedFile?.name || params?.fileName || 'uploaded-file',
+        content: node.fileContent,
+        metadata: {
+          nodeId: node.id,
+          uploadedAt: new Date().toISOString(),
+          fileType: params?.fileType,
+          fileSize: node.uploadedFile?.size,
+        }
+      };
+      
+      return node.fileContent;
+    }
   
   // If no file content, this might be a configuration error
   throw new Error('No file uploaded for file upload node. Please upload a file first.');
