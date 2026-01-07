@@ -107,24 +107,25 @@ async function executeNotionNode(
   
   console.log(`📄 Notion node action: ${action}, using smart fetcher for ID: ${notionId}`);
   
-  // Direct API call
-  const result = await appendToNotionPage(pageId, content);
+  // Handle different actions
+  if (action === 'fetch_page' || action === 'fetch_database' || !action) {
+    // Use smart fetcher that auto-detects page vs database
+    const content = await fetchNotion(notionId);
+    return content;
+  } else if (action === 'append' || action === 'append_to_page') {
+    // Append content to page
+    const content = context.lastOutput || params?.content || '';
+    const result = await appendToNotionPage(notionId, content);
     
-  if (!result.success) {
-    throw new Error(result.error || 'Failed to append to Notion page');
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to append to Notion page');
+    }
+    return result.data || 'Content appended successfully';
+  } else {
+    // Default: use smart fetcher
+    const content = await fetchNotion(notionId);
+    return content;
   }
-  return result.data || 'Content appended successfully';
-}
-
-  console.log(`📄 Notion node action: ${action}, using smart fetcher for ID: ${notionId}`);
-   
-  // Direct API call
-  const result = await appendToNotionPage(pageId, content);
-    
-  if (!result.success) {
-    throw new Error(result.error || 'Failed to append to Notion page');
-  }
-  return result.data || 'Content appended successfully';
 }
 
 /**
@@ -160,29 +161,6 @@ async function executeTavilyNode(
   
   console.log(`📝 Direct Tavily API result - Data length: ${result.data ? result.data.length : 0}`);
   return result.data || 'No results found';
-}
-  if (!query) {
-    query = userInput; // fallback to user input entirely
-  }
-
-  if (!query || query.trim().length === 0) {
-    throw new Error('Search query not provided for Tavily search');
-  }
-
-  const maxResults = params?.max_results || params?.maxResults || 5;
-  const includeDomains = params?.includeDomains || params?.include_domains;
-  const site = params?.site;
-
-  // Direct API call
-  const result = await searchWeb(query, { maxResults, includeDomains, site });
-  
-  if (!result.success) {
-    throw new Error(result.error || 'Web search failed');
-  }
-  
-  console.log(`📝 Direct Tavily API result - Data length: ${result.data ? result.data.length : 0}`);
-  return result.data || 'No results found';
-
 }
 
 /**
