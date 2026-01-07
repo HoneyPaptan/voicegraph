@@ -302,7 +302,7 @@ This project is designed for hackathon competition with the following sponsor re
 ### Cerebras AI (Required)
 - Primary LLM for workflow parsing
 - Content processing and summarization
-- Models: llama-4-scout-17b-16e-instruct
+- Models:qwen-3-32b
 
 ### Docker MCP Gateway
 - Containerized MCP server orchestration

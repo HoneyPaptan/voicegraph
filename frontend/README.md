@@ -86,9 +86,7 @@ NEXT_PUBLIC_TAVILY_API_KEY=your_tavily_api_key_here
 # MCP Gateway
 NEXT_PUBLIC_MCP_GATEWAY_URL=http://localhost:3001
 
-# Inngest (Background Processing)
-NEXT_PUBLIC_INNGEST_EVENT_KEY=dev-key-12345
-NEXT_PUBLIC_INNGEST_SIGNING_KEY=dev-signing-key-67890
+
 ```
 
 ### Development Server
@@ -124,7 +122,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 - **`/api/transcribe`**: Groq Whisper speech-to-text
 - **`/api/parse`**: Cerebras LLM workflow parsing
 - **`/api/execute`**: Real-time workflow execution
-- **`/api/execute-background`**: Background processing
+- **`/api/execute-background`**: Direct workflow execution
 - **`/api/edit-workflow`**: Voice-based editing
 
 ### External Services

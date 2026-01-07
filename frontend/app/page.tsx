@@ -10,7 +10,7 @@ import WorkflowToolbar from '@/components/motion-primitives/WorkflowToolbar';
 import { ExecutionLogs } from '@/components/ExecutionLogs';
 import { VisualDebugger } from '@/components/VisualDebugger';
 import { ConfigModal } from '@/components/ConfigModal';
-import { WorkflowHistory } from '@/components/WorkflowHistory';
+
 import { NodeConfigPanel } from '@/components/NodeConfigPanel';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -34,7 +34,7 @@ export default function Home() {
   // Voice Edit mode (for voice-based workflow editing)
   const [isEditMode, setIsEditMode] = useState(false);
   const [isEditingWorkflow, setIsEditingWorkflow] = useState(false);
-  const [useBackgroundExecution, setUseBackgroundExecution] = useState(false);
+
   const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(null);
   const [manualMode, setManualMode] = useState(false);
   const [selectedNodeForConfig, setSelectedNodeForConfig] = useState<WorkflowNode | null>(null);
@@ -52,10 +52,8 @@ export default function Home() {
 
   // Poll current workflow status if running in background
   useEffect(() => {
-    console.log(`🔄 Polling effect triggered: currentWorkflowId=${currentWorkflowId}, useBackgroundExecution=${useBackgroundExecution}`);
-    
-    if (!currentWorkflowId || !useBackgroundExecution) {
-      console.log(`⏸️ Polling skipped: currentWorkflowId=${currentWorkflowId}, useBackgroundExecution=${useBackgroundExecution}`);
+    if (!currentWorkflowId) {
+      console.log(`⏸️ Polling skipped: currentWorkflowId=${currentWorkflowId}`);
       return;
     }
     
@@ -164,7 +162,7 @@ export default function Home() {
       clearInterval(interval);
       hasCompleted = false; // Reset on cleanup
     };
-  }, [currentWorkflowId, useBackgroundExecution]);
+  }, [currentWorkflowId]);
 
   // Handle transcription
   const handleTranscribed = async (text: string) => {
@@ -389,132 +387,15 @@ export default function Home() {
     setShowConfigModal(true);
   };
 
-  // Execute workflow in background (Inngest)
-  const executeWorkflowBackground = async (config: Record<string, string>) => {
-    console.log(`🚀 executeWorkflowBackground called with config:`, config);
-    console.log(`🚀 Current workflow:`, workflow);
-    
-    if (!workflow) {
-      console.log(`❌ No workflow to execute`);
-      return;
-    }
 
-    console.log(`🚀 Starting background execution...`);
-    setIsExecuting(true);
-    setExecutionLogs([]);
-    setActiveNodeIds([]);
-    setErrorNodeId(null);
-    setSuccessfulNodeIds([]);
 
-    try {
-      const response = await fetch('/api/execute-background', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          workflow,
-          config,
-          transcribedText,
-        }),
-      });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to start background execution');
-      }
-
-      // Store workflow ID for tracking
-      console.log(`📝 Setting currentWorkflowId to: ${data.workflowId}`);
-      setCurrentWorkflowId(data.workflowId);
-      setExecutionStartTime(Date.now());
-
-      // Immediately mark UI as running; polling will transition to running when history updates
-      setExecutionLogs([
-        {
-          nodeId: 'system',
-          type: 'success',
-          message: `✓ Workflow started in background (ID: ${data.workflowId.slice(0, 12)}...)`,
-          timestamp: Date.now(),
-        },
-        {
-          nodeId: 'system',
-          type: 'info',
-          message: '📊 View progress in Workflow History',
-          timestamp: Date.now(),
-        },
-      ]);
-    } catch (error: any) {
-      console.error('Background execution error:', error);
-      setExecutionLogs([
-        {
-          nodeId: 'system',
-          type: 'error',
-          message: `✗ ${error.message}`,
-          timestamp: Date.now(),
-        },
-      ]);
-    } finally {
-      setIsExecuting(false);
-    }
-  };
-
-  // Restore workflow from history
-  const handleRestoreWorkflow = (run: WorkflowRun) => {
-    console.log('Restoring workflow:', run.id);
-    
-    // Restore workflow state
-    setWorkflow(run.workflow);
-    setTranscribedText(run.transcribedText || '');
-    setExecutionLogs(run.logs);
-    setCurrentWorkflowId(run.id);
-    
-    // Extract successful nodes from logs
-    const successLogs = run.logs.filter((log) => log.type === 'success');
-    const successfulNodes = successLogs.map((log) => log.nodeId).filter((id) => id !== 'system');
-    setSuccessfulNodeIds(successfulNodes);
-    
-    // Set active/error nodes based on status
-    if (run.status === 'running') {
-      setIsExecuting(true);
-      const lastLog = run.logs[run.logs.length - 1];
-      if (lastLog && lastLog.type === 'progress') {
-        setActiveNodeIds([lastLog.nodeId]);
-      }
-    } else if (run.status === 'failed') {
-      setIsExecuting(false);
-      const errorLog = run.logs.find((log) => log.type === 'error');
-      if (errorLog) {
-        setErrorNodeId(errorLog.nodeId);
-      }
-      setActiveNodeIds([]);
-      setSuccessfulNodeIds([]);
-    } else if (run.status === 'completed') {
-      setIsExecuting(false);
-      setActiveNodeIds([]);
-      setErrorNodeId(null);
-    }
-    
-    // Clear edit mode and reset execution states
-    setIsEditMode(false);
-    setParseError(null);
-    
-    // Ensure execution states are properly reset
-    if (run.status === 'completed') {
-      setActiveNodeIds([]);
-      setErrorNodeId(null);
-    } else if (run.status === 'failed') {
-      setActiveNodeIds([]);
-    }
-  };
 
   // Execute workflow with config
   const executeWorkflow = async (config: Record<string, string>) => {
     if (!workflow) return;
 
-    // Use background execution if enabled
-    if (useBackgroundExecution) {
-      return executeWorkflowBackground(config);
-    }
+
 
     // Reset all states
     setIsExecuting(true);
@@ -1205,8 +1086,7 @@ export default function Home() {
               }
             }}
             isExecuting={isExecuting}
-            useBackgroundExecution={useBackgroundExecution}
-            onToggleBG={() => setUseBackgroundExecution(!useBackgroundExecution)}
+
             onOpenText={handleSubmitText}
             textCommand={textCommand}
             onTextChange={setTextCommand}
@@ -1287,8 +1167,7 @@ export default function Home() {
         />
       )}
 
-      {/* Workflow History - Already Floating */}
-      <WorkflowHistory onRestore={handleRestoreWorkflow} hasWorkflow={!!workflow} />
+
 
       {/* Visual Debugger Modal */}
       {workflow && (

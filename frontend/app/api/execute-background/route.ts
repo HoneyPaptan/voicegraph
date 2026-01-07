@@ -6,7 +6,7 @@ import { WorkflowNode, ExecutionContext, WorkflowEdge } from '@/lib/types';
 
 /**
  * POST /api/execute-background
- * Executes workflow in background without Inngest (fallback)
+ * Executes workflow in background using native Node.js execution
  */
 export async function POST(request: NextRequest) {
   try {

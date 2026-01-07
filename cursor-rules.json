@@ -8,7 +8,7 @@
       "cerebras": {
         "requirement": "Best use of Cerebras API",
         "usage": "Primary LLM for workflow parsing and content processing",
-        "models": ["llama-4-scout-17b-16e-instruct", "llama3.1-70b"],
+        "models": ["qwen-3-32b", "llama3.1-70b"],
         "docs": "https://inference-docs.cerebras.ai/quickstart"
       },
       "meta_llama": {
@@ -53,8 +53,12 @@
       "llm_inference": {
         "provider": "Cerebras (REQUIRED for prize)",
         "package": "@ai-sdk/cerebras + ai (Vercel AI SDK)",
-        "models": ["llama-4-scout-17b-16e-instruct"],
-        "use_cases": ["Parse natural language to workflow JSON", "Summarize content", "Transform data between steps"]
+        "models": ["qwen-3-32b"],
+        "use_cases": [
+          "Parse natural language to workflow JSON",
+          "Summarize content",
+          "Transform data between steps"
+        ]
       }
     },
     "integrations": {
@@ -70,7 +74,11 @@
     },
     "deployment": {
       "containerization": "Docker + docker-compose",
-      "hosting_options": ["Vercel (frontend)", "Railway (backend)", "Local with Docker"]
+      "hosting_options": [
+        "Vercel (frontend)",
+        "Railway (backend)",
+        "Local with Docker"
+      ]
     }
   },
   "architecture": {
@@ -153,7 +161,12 @@
       "react_ecosystem": ["react", "react-dom", "next"],
       "ai_sdks": ["@ai-sdk/cerebras", "ai", "groq-sdk"],
       "integrations": ["@notionhq/client", "nodemailer"],
-      "ui_components": ["reactflow", "framer-motion", "lucide-react", "@/components/ui/* (shadcn)"],
+      "ui_components": [
+        "reactflow",
+        "framer-motion",
+        "lucide-react",
+        "@/components/ui/* (shadcn)"
+      ],
       "utilities": ["lodash (for data processing)", "papaparse (if CSV needed)"]
     }
   },
@@ -231,9 +244,17 @@
       "input": "Get my Notion meeting notes and email me a summary",
       "workflow": {
         "nodes": [
-          {"type": "notion", "action": "fetch_page"},
-          {"type": "llm", "action": "summarize", "prompt": "Create a concise summary"},
-          {"type": "email", "action": "send", "subject": "Meeting Notes Summary"}
+          { "type": "notion", "action": "fetch_page" },
+          {
+            "type": "llm",
+            "action": "summarize",
+            "prompt": "Create a concise summary"
+          },
+          {
+            "type": "email",
+            "action": "send",
+            "subject": "Meeting Notes Summary"
+          }
         ]
       }
     },
@@ -241,9 +262,17 @@
       "input": "Fetch my Notion project tasks and send me a status update",
       "workflow": {
         "nodes": [
-          {"type": "notion", "action": "fetch_database"},
-          {"type": "llm", "action": "analyze", "prompt": "Analyze project status"},
-          {"type": "email", "action": "send", "subject": "Project Status Update"}
+          { "type": "notion", "action": "fetch_database" },
+          {
+            "type": "llm",
+            "action": "analyze",
+            "prompt": "Analyze project status"
+          },
+          {
+            "type": "email",
+            "action": "send",
+            "subject": "Project Status Update"
+          }
         ]
       }
     },
@@ -251,9 +280,13 @@
       "input": "Get my weekly Notion journal and email me key insights",
       "workflow": {
         "nodes": [
-          {"type": "notion", "action": "fetch_page"},
-          {"type": "llm", "action": "extract_insights", "prompt": "Extract key insights and learnings"},
-          {"type": "email", "action": "send", "subject": "Weekly Insights"}
+          { "type": "notion", "action": "fetch_page" },
+          {
+            "type": "llm",
+            "action": "extract_insights",
+            "prompt": "Extract key insights and learnings"
+          },
+          { "type": "email", "action": "send", "subject": "Weekly Insights" }
         ]
       }
     }

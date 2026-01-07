@@ -17,8 +17,6 @@ interface WorkflowToolbarProps {
   onRun: () => void;
   onVoiceEdit: (text: string) => void;
   isExecuting: boolean;
-  useBackgroundExecution: boolean;
-  onToggleBG: () => void;
   onOpenText: () => void;
   textCommand: string;
   onTextChange: (text: string) => void;
@@ -30,8 +28,6 @@ export default function WorkflowToolbar({
   onRun,
   onVoiceEdit,
   isExecuting,
-  useBackgroundExecution,
-  onToggleBG,
   onOpenText,
   textCommand,
   onTextChange,
@@ -209,16 +205,7 @@ export default function WorkflowToolbar({
         </div>
       ),
     },
-    {
-      id: 4,
-      title: (
-        <Button size="sm" variant={useBackgroundExecution ? 'default' : 'outline'} className={`h-9 px-2 ${useBackgroundExecution ? 'bg-white text-black hover:bg-white/90' : 'bg-black border-white/20 text-white hover:bg-black/80'}`} aria-label="Background">
-          <Zap className="w-3 h-3 mr-1" /> BG
-        </Button>
-      ),
-      content: null,
-      onClick: onToggleBG,
-    },
+
   ];
 
   return (

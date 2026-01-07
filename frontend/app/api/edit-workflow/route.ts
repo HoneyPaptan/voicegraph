@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createCerebras } from '@ai-sdk/cerebras';
-import { generateText } from 'ai';
-import { ensureWorkflowEdges } from '@/lib/workflow-utils';
+import { NextRequest, NextResponse } from "next/server";
+import { createCerebras } from "@ai-sdk/cerebras";
+import { generateText } from "ai";
+import { ensureWorkflowEdges } from "@/lib/workflow-utils";
 
 /**
  * POST /api/edit-workflow
@@ -11,10 +11,10 @@ export async function POST(request: NextRequest) {
   try {
     const { text, currentWorkflow } = await request.json();
 
-    if (!text || typeof text !== 'string') {
+    if (!text || typeof text !== "string") {
       return NextResponse.json(
-        { error: 'Invalid input text' },
-        { status: 400 }
+        { error: "Invalid input text" },
+        { status: 400 },
       );
     }
 
@@ -22,27 +22,37 @@ export async function POST(request: NextRequest) {
     const trimmedText = text.trim();
     if (trimmedText.length < 5 || /^[.\s,!?-]*$/.test(trimmedText)) {
       return NextResponse.json(
-        { error: 'Please provide a meaningful edit command. Try something like: "add a summarize step" or "extract date at the same time"' },
-        { status: 400 }
+        {
+          error:
+            'Please provide a meaningful edit command. Try something like: "add a summarize step" or "extract date at the same time"',
+        },
+        { status: 400 },
       );
     }
 
-    if (!currentWorkflow || !currentWorkflow.nodes || currentWorkflow.nodes.length === 0) {
+    if (
+      !currentWorkflow ||
+      !currentWorkflow.nodes ||
+      currentWorkflow.nodes.length === 0
+    ) {
       return NextResponse.json(
-        { error: 'No existing workflow to edit. Please create a workflow first, then use voice edit to modify it.' },
-        { status: 400 }
+        {
+          error:
+            "No existing workflow to edit. Please create a workflow first, then use voice edit to modify it.",
+        },
+        { status: 400 },
       );
     }
 
-    console.log('Parsing workflow edit command:', text);
-    console.log('Current workflow:', JSON.stringify(currentWorkflow, null, 2));
+    console.log("Parsing workflow edit command:", text);
+    console.log("Current workflow:", JSON.stringify(currentWorkflow, null, 2));
 
     const apiKey = process.env.CEREBRAS_API_KEY;
-    
+
     if (!apiKey) {
       return NextResponse.json(
-        { error: 'CEREBRAS_API_KEY not configured' },
-        { status: 500 }
+        { error: "CEREBRAS_API_KEY not configured" },
+        { status: 500 },
       );
     }
 
@@ -52,20 +62,25 @@ export async function POST(request: NextRequest) {
     const analyzeWorkflow = (workflow: any) => {
       const nodes = workflow.nodes || [];
       const edges = workflow.edges || [];
-      
+
       // Build flow structure
       const flowStructure = nodes.map((node: any, index: number) => {
         const incomingEdges = edges.filter((e: any) => e.target === node.id);
         const outgoingEdges = edges.filter((e: any) => e.source === node.id);
-        const position = `${index + 1}${index === 0 ? ' (first)' : index === nodes.length - 1 ? ' (last)' : ''}`;
-        
+        const position = `${index + 1}${index === 0 ? " (first)" : index === nodes.length - 1 ? " (last)" : ""}`;
+
         return {
           id: node.id,
           position,
           type: node.type,
           action: node.action,
           label: node.label,
-          role: index === 0 ? 'starting point' : index === nodes.length - 1 ? 'final step' : 'processing step',
+          role:
+            index === 0
+              ? "starting point"
+              : index === nodes.length - 1
+                ? "final step"
+                : "processing step",
           incomingFrom: incomingEdges.map((e: any) => {
             const sourceNode = nodes.find((n: any) => n.id === e.source);
             return sourceNode ? sourceNode.label : e.source;
@@ -73,21 +88,28 @@ export async function POST(request: NextRequest) {
           outgoingTo: outgoingEdges.map((e: any) => {
             const targetNode = nodes.find((n: any) => n.id === e.target);
             return targetNode ? targetNode.label : e.target;
-          })
+          }),
         };
       });
-      
+
       return flowStructure;
     };
 
     const workflowAnalysis = analyzeWorkflow(currentWorkflow);
-    const flowDescription = workflowAnalysis.map((node: any) => 
-      `${node.position}. ${node.label} (${node.type}-${node.action}) - ${node.role}${
-        node.incomingFrom.length > 0 ? ` ← receives from: [${node.incomingFrom.join(', ')}]` : ''
-      }${
-        node.outgoingTo.length > 0 ? ` → sends to: [${node.outgoingTo.join(', ')}]` : ''
-      }`
-    ).join('\n');
+    const flowDescription = workflowAnalysis
+      .map(
+        (node: any) =>
+          `${node.position}. ${node.label} (${node.type}-${node.action}) - ${node.role}${
+            node.incomingFrom.length > 0
+              ? ` ← receives from: [${node.incomingFrom.join(", ")}]`
+              : ""
+          }${
+            node.outgoingTo.length > 0
+              ? ` → sends to: [${node.outgoingTo.join(", ")}]`
+              : ""
+          }`,
+      )
+      .join("\n");
 
     const prompt = `You are an intelligent workflow editor AI with full context awareness. A user wants to modify their existing workflow using natural voice commands.
 
@@ -105,7 +127,7 @@ ${JSON.stringify(currentWorkflow, null, 2)}
 USER'S EDIT COMMAND: "${text}"
 
 CONTEXT UNDERSTANDING RULES:
-1. **Reference Resolution**: 
+1. **Reference Resolution**:
    - "this node/step" = most recently mentioned or contextually relevant node
    - "the [type] node" = find the node by type (e.g., "the email node", "the summarize step")
    - "first/last node" = use position in flow
@@ -131,7 +153,7 @@ AVAILABLE NODE TYPES & ACTIONS:
 - notion: fetch_page, fetch_database, query_database
 - notion_create: create_page
 - llm: summarize, analyze, extract_insights, transform, generate, OR any custom action
-- email: send  
+- email: send
 - tavily: search, search_news
 - github: get_commits, get_repo_info, get_pull_requests
 - file_upload: upload_any (for any file type)
@@ -161,15 +183,18 @@ PARALLEL PROCESSING KEYWORDS:
 Return ONLY the updated workflow JSON with no explanations, or the sentinel __OFF_TOPIC__.`;
 
     const { text: response } = await generateText({
-      model: cerebras('llama-4-scout-17b-16e-instruct'),
+      model: cerebras("qwen-3-32b"),
       prompt: prompt,
     });
 
     // Off-topic handling
-    if (response.includes('__OFF_TOPIC__')) {
+    if (response.includes("__OFF_TOPIC__")) {
       return NextResponse.json(
-        { error: 'I can modify workflows based on your instructions. Try: "Add a gather information step after upload".' },
-        { status: 400 }
+        {
+          error:
+            'I can modify workflows based on your instructions. Try: "Add a gather information step after upload".',
+        },
+        { status: 400 },
       );
     }
 
@@ -183,7 +208,7 @@ Return ONLY the updated workflow JSON with no explanations, or the sentinel __OF
           return JSON.parse(fenced);
         }
         // 2) Try first balanced { ... } block
-        const start = text.indexOf('{');
+        const start = text.indexOf("{");
         if (start === -1) return null;
         let depth = 0;
         let inString = false;
@@ -193,15 +218,15 @@ Return ONLY the updated workflow JSON with no explanations, or the sentinel __OF
           if (inString) {
             if (escape) {
               escape = false;
-            } else if (ch === '\\') {
+            } else if (ch === "\\") {
               escape = true;
             } else if (ch === '"') {
               inString = false;
             }
           } else {
             if (ch === '"') inString = true;
-            else if (ch === '{') depth++;
-            else if (ch === '}') {
+            else if (ch === "{") depth++;
+            else if (ch === "}") {
               depth--;
               if (depth === 0) {
                 const candidate = text.slice(start, i + 1);
@@ -211,27 +236,30 @@ Return ONLY the updated workflow JSON with no explanations, or the sentinel __OF
           }
         }
       } catch (e) {
-        console.warn('Failed to parse JSON via robust extractor:', e);
+        console.warn("Failed to parse JSON via robust extractor:", e);
       }
       return null;
     };
 
     const parsed = extractJson(response);
     if (!parsed) {
-      console.error('Failed to extract JSON from response:', response);
+      console.error("Failed to extract JSON from response:", response);
       return NextResponse.json(
-        { error: 'Edit command understood, but I could not produce a clean workflow JSON. Please rephrase slightly (e.g., "Add a gather information step after file upload").' },
-        { status: 400 }
+        {
+          error:
+            'Edit command understood, but I could not produce a clean workflow JSON. Please rephrase slightly (e.g., "Add a gather information step after file upload").',
+        },
+        { status: 400 },
       );
     }
 
     let updatedWorkflow = parsed;
-    
+
     // Enhanced validation for edited workflows
     const validateEditedWorkflow = (workflow: any, originalWorkflow: any) => {
       // Basic structure validation
       if (!workflow.nodes || !Array.isArray(workflow.nodes)) {
-        throw new Error('Invalid workflow structure: missing nodes array');
+        throw new Error("Invalid workflow structure: missing nodes array");
       }
 
       if (!workflow.edges || !Array.isArray(workflow.edges)) {
@@ -242,7 +270,9 @@ Return ONLY the updated workflow JSON with no explanations, or the sentinel __OF
       if (workflow.nodes && Array.isArray(workflow.nodes)) {
         workflow.nodes.forEach((node: any, index: number) => {
           if (!node.id || !node.type || !node.action || !node.label) {
-            throw new Error(`Invalid node structure at position ${index + 1}: missing required fields (id: ${node.id}, type: ${node.type}, action: ${node.action}, label: ${node.label})`);
+            throw new Error(
+              `Invalid node structure at position ${index + 1}: missing required fields (id: ${node.id}, type: ${node.type}, action: ${node.action}, label: ${node.label})`,
+            );
           }
         });
       }
@@ -251,7 +281,9 @@ Return ONLY the updated workflow JSON with no explanations, or the sentinel __OF
       const nodeIds = workflow.nodes.map((n: any) => n.id);
       workflow.edges.forEach((edge: any, index: number) => {
         if (!nodeIds.includes(edge.source) || !nodeIds.includes(edge.target)) {
-          console.warn(`⚠️ Edge ${index + 1} references non-existent nodes: ${edge.source} → ${edge.target}`);
+          console.warn(
+            `⚠️ Edge ${index + 1} references non-existent nodes: ${edge.source} → ${edge.target}`,
+          );
         }
       });
 
@@ -262,7 +294,9 @@ Return ONLY the updated workflow JSON with no explanations, or the sentinel __OF
 
       // Ensure at least one node exists
       if (workflow.nodes.length === 0) {
-        throw new Error('Workflow cannot be empty - at least one node is required');
+        throw new Error(
+          "Workflow cannot be empty - at least one node is required",
+        );
       }
 
       return workflow;
@@ -271,30 +305,37 @@ Return ONLY the updated workflow JSON with no explanations, or the sentinel __OF
     updatedWorkflow = validateEditedWorkflow(updatedWorkflow, currentWorkflow);
 
     // Debug: Log what Cerebras generated
-    console.log('🧠 Cerebras edited workflow:');
-    console.log('   Nodes:', updatedWorkflow.nodes.map((n: any) => `${n.id} (${n.label})`).join(', '));
-    console.log('   Raw Edges:', JSON.stringify(updatedWorkflow.edges, null, 2));
+    console.log("🧠 Cerebras edited workflow:");
+    console.log(
+      "   Nodes:",
+      updatedWorkflow.nodes.map((n: any) => `${n.id} (${n.label})`).join(", "),
+    );
+    console.log(
+      "   Raw Edges:",
+      JSON.stringify(updatedWorkflow.edges, null, 2),
+    );
 
     // Ensure all nodes are connected with edges (only adds if missing)
     updatedWorkflow = ensureWorkflowEdges(updatedWorkflow);
-    
-    console.log('   Final Edges:', JSON.stringify(updatedWorkflow.edges, null, 2));
 
-    return NextResponse.json({ 
+    console.log(
+      "   Final Edges:",
+      JSON.stringify(updatedWorkflow.edges, null, 2),
+    );
+
+    return NextResponse.json({
       workflow: updatedWorkflow,
       success: true,
-      message: 'Workflow updated successfully'
+      message: "Workflow updated successfully",
     });
-
   } catch (error: any) {
-    console.error('Workflow edit error:', error);
+    console.error("Workflow edit error:", error);
     return NextResponse.json(
-      { 
-        error: error.message || 'Failed to edit workflow',
-        details: error.toString()
+      {
+        error: error.message || "Failed to edit workflow",
+        details: error.toString(),
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

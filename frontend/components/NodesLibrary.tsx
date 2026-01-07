@@ -34,7 +34,7 @@ const AVAILABLE_NODES: NodeLibraryItem[] = [
     icon: <FileEdit className="w-5 h-5" />,
     description: 'Create new Notion pages',
     color: '',
-    actions: ['create_page'],
+    actions: ['create_page', 'append_to_page'],
   },
   {
     type: 'llm',
@@ -66,7 +66,7 @@ const AVAILABLE_NODES: NodeLibraryItem[] = [
     icon: <Github className="w-5 h-5" />,
     description: 'Get GitHub repository info',
     color: '',
-    actions: ['get_commits', 'get_repo_info', 'get_pull_requests'],
+    actions: ['get_repos', 'get_issues', 'create_issue'],
   },
   {
     type: 'file_upload',
