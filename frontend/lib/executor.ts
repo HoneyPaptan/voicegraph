@@ -31,32 +31,15 @@ export async function executeNode(
         output = await createNotionPage(context, node);
         break;
       case 'llm':
-        output = await generateContent(node, context);
-        break;
-      case 'email':
-        output = await sendEmail(context, node);
-        break;
-      case 'tavily':
-      case 'web_search':
-        output = await searchWeb(query, { maxResults, includeDomains, site });
-        break;
-      case 'github':
-        output = await getGitHubData(node, context);
-        break;
-
-      case 'llm':
         output = await executeLLMNode(node, context);
         break;
-
       case 'email':
         output = await executeEmailNode(node, context);
         break;
-
       case 'tavily':
       case 'web_search':
         output = await executeTavilyNode(node, context);
         break;
-
       case 'github':
         output = await executeGitHubNode(node, context);
         break;
@@ -264,6 +247,41 @@ async function executeGitHubNode(
 }
 
 /**
+ * Executes an Email node
+ * Sends email with workflow results
+ */
+async function executeEmailNode(
+  node: WorkflowNode,
+  context: ExecutionContext
+): Promise<string> {
+  const { action, params } = node;
+  
+  // Get recipient email - prioritize user config, then params, then throw error
+  const to = context.recipientEmail || params?.to || params?.recipient || params?.email;
+  
+  if (!to || typeof to !== 'string') {
+    throw new Error('Email recipient address is required. Please enter it in the configuration modal or specify in workflow parameters.');
+  }
+  
+  // Get subject from params or use default
+  const subject = params?.subject || `Workflow Result - ${new Date().toLocaleString()}`;
+  
+  // Get email body from previous node output or params
+  const body = context.lastOutput || params?.body || params?.content || params?.message || 'This email was sent automatically by a workflow.';
+  
+  // Ensure body is a string
+  const emailBody = typeof body === 'string' ? body : String(body || '');
+  
+  if (!emailBody || emailBody.trim().length === 0) {
+    throw new Error('Email body is required. Make sure previous nodes in the workflow produce output.');
+  }
+  
+  console.log(`📧 Sending email - To: ${to}, Subject: "${subject}"`);
+  
+  return await sendEmail(to, subject, emailBody);
+}
+
+/**
  * Executes a file upload node
  * Processes uploaded files and extracts text content
  */
@@ -305,6 +323,52 @@ async function executeFileUploadNode(
   
   // If no file content, this might be a configuration error
   throw new Error('No file uploaded for file upload node. Please upload a file first.');
+}
+
+/**
+ * Executes an LLM node
+ * Processes content using Cerebras AI
+ */
+async function executeLLMNode(
+  node: WorkflowNode,
+  context: ExecutionContext
+): Promise<string> {
+  const { action, params } = node;
+  
+  // Get the prompt from params or use a default based on action
+  let prompt = params?.prompt || '';
+  
+  // Get input content from previous nodes
+  const inputContent = context.lastOutput || context.sourceContent || '';
+  
+  // Build the full prompt based on action
+  if (action === 'summarize') {
+    prompt = prompt || 'Summarize the following content concisely:';
+    prompt = `${prompt}\n\n${inputContent}`;
+  } else if (action === 'analyze') {
+    prompt = prompt || 'Analyze the following content:';
+    prompt = `${prompt}\n\n${inputContent}`;
+  } else if (action === 'extract_insights') {
+    prompt = prompt || 'Extract key insights from the following content:';
+    prompt = `${prompt}\n\n${inputContent}`;
+  } else if (action === 'transform') {
+    prompt = prompt || 'Transform the following content:';
+    prompt = `${prompt}\n\n${inputContent}`;
+  } else if (action === 'generate') {
+    prompt = prompt || inputContent || 'Generate content based on the context.';
+  } else {
+    // Default: use prompt if provided, otherwise use input content
+    prompt = prompt || inputContent || 'Process the following content:';
+    if (inputContent && prompt !== inputContent) {
+      prompt = `${prompt}\n\n${inputContent}`;
+    }
+  }
+  
+  if (!prompt || prompt.trim().length === 0) {
+    throw new Error('LLM node requires either a prompt parameter or input content from previous nodes.');
+  }
+  
+  return await generateContent(prompt);
 }
 
 /**
